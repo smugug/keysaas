@@ -1,0 +1,7 @@
+apiVersion: moodlecontroller.kubeplus/v1
+kind: Moodle
+metadata:
+  name: moodletest
+  namespace: customer2
+spec:
+
