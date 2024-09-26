@@ -29,13 +29,11 @@ spec:
       openAPIV3Schema:
         type: object
         properties:
+
+
           spec:
             type: object
             properties:
-              plugins:
-                type: array
-                items:
-                  type: string
               mySQLServiceName:
                 type: string
               mySQLUserName:
@@ -49,6 +47,17 @@ spec:
               domainName:
                 type: string
               tls:
+                type: string
+          status:
+            type: object
+            properties:
+              podName:
+                type: string
+              secretName:
+                type: string
+              status:
+                type: string
+              url:
                 type: string
   names:
     kind: Moodle
@@ -76,8 +85,6 @@ spec:
 #       - name: moodle-operator
 #         image: moodle-operator:0.5.0
 #         imagePullPolicy: Never
-
-
       #   volumeMounts:
       #   - mountPath: /testing
       #     name: example-volume

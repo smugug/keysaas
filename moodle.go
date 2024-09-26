@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	operatorv1 "github.com/cloud-ark/kubeplus-operators/moodle/pkg/apis/moodlecontroller/v1"
-	"github.com/cloud-ark/kubeplus-operators/moodle/pkg/utils/constants"
+	operatorv1 "github.com/smugug/keysaas/pkg/apis/moodlecontroller/v1"
+
+	"github.com/smugug/keysaas/pkg/utils/constants"
 	appsv1 "k8s.io/api/apps/v1"
 	apiv1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -24,18 +24,11 @@ import (
 const TEST_PORT = 8000
 
 func (c *MoodleController) deployMoodle(ctx context.Context, foo *operatorv1.Moodle) (string, string, string, error) {
-	// test deploy
-	file, err := os.OpenFile("testing/threads.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		c.logger.Info("Error creating deploy", "error", err)
-	}
-	defer file.Close()
-	file.WriteString("Deployer")
 	c.logger.Info("MoodleController.go : Inside deployMoodle")
 	var moodlePodName, serviceURIToReturn string
 
 	// c.createPersistentVolume(foo)
-	if foo.Spec.PVCVolumeName == "" {
+	if foo.Spec.PvcVolumeName == "" {
 		c.createPersistentVolumeClaim(foo)
 	}
 	servicePort := c.createService(foo)
@@ -418,7 +411,7 @@ func (c *MoodleController) createDeployment(foo *operatorv1.Moodle) (error, stri
 
 	volumeName := "moodle-data"
 
-	claimName := foo.Spec.PVCVolumeName
+	claimName := foo.Spec.PvcVolumeName
 	if claimName == "" {
 		claimName = foo.Name
 	}

@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cloud-ark/kubeplus-operators/moodle/pkg/utils/constants"
+	"github.com/smugug/keysaas/pkg/utils/constants"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"

@@ -30,7 +30,7 @@ type MoodleSpec struct {
 	//Moodle Admin Email
 	MoodleAdminEmail string `json:"moodleAdminEmail"`
 	//PVC Volume Name
-	PVCVolumeName string `json:"PVCVolumeName"`
+	PvcVolumeName string `json:"pvcVolumeName"`
 	//Domain Name
 	DomainName string `json:"domainName"`
 	//TLS Flag

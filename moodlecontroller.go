@@ -19,11 +19,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	kubeinformers "k8s.io/client-go/informers"
@@ -37,13 +37,13 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	operatorv1 "github.com/cloud-ark/kubeplus-operators/moodle/pkg/apis/moodlecontroller/v1"
-	clientset "github.com/cloud-ark/kubeplus-operators/moodle/pkg/client/clientset/versioned"
-	operatorscheme "github.com/cloud-ark/kubeplus-operators/moodle/pkg/client/clientset/versioned/scheme"
-	informers "github.com/cloud-ark/kubeplus-operators/moodle/pkg/client/informers/externalversions"
-	listers "github.com/cloud-ark/kubeplus-operators/moodle/pkg/client/listers/moodlecontroller/v1"
-	"github.com/cloud-ark/kubeplus-operators/moodle/pkg/utils"
 	"github.com/go-logr/logr"
+	operatorv1 "github.com/smugug/keysaas/pkg/apis/moodlecontroller/v1"
+	clientset "github.com/smugug/keysaas/pkg/generated/clientset/versioned"
+	operatorscheme "github.com/smugug/keysaas/pkg/generated/clientset/versioned/scheme"
+	informers "github.com/smugug/keysaas/pkg/generated/informers/externalversions"
+	listers "github.com/smugug/keysaas/pkg/generated/listers/moodlecontroller/v1"
+	"github.com/smugug/keysaas/pkg/utils"
 )
 
 const controllerAgentName = "moodle-controller"
@@ -110,14 +110,6 @@ func NewMoodleController(
 	sampleclientset clientset.Interface,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	moodleInformerFactory informers.SharedInformerFactory) *MoodleController {
-
-	//test
-	file, err := os.OpenFile("testing/threads.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		fmt.Println("Error creating control:", err)
-	}
-	defer file.Close()
-	file.WriteString("Controller")
 
 	logger := klog.FromContext(ctx)
 
@@ -341,10 +333,10 @@ func (c *MoodleController) syncHandler(ctx context.Context, objRef cache.ObjectN
 			//correctlyInstalledPlugins = c.getDiff(supportedPlugins, erredPlugins)
 		}
 		c.logger.Info("MoodleController.go : Updating status")
-		err = c.updateMoodleStatus(foo, podName, secretName, status, url)
+		err = c.updateMoodleStatus(ctx, foo, podName, secretName, status, url)
 		if err != nil {
 			c.logger.Info("MoodleController.go : Updating error", "error", err)
-			// return err
+			return err
 		}
 	} else {
 		c.logger.Info("MoodleController.go : Moodle custom resource did not change", "moodle name", moodleName)
@@ -440,12 +432,11 @@ func (c *MoodleController) enqueueFoo(obj interface{}) {
 	}
 }
 
-func (c *MoodleController) updateMoodleStatus(foo *operatorv1.Moodle, podName, secretName, status string, url string) error {
+func (c *MoodleController) updateMoodleStatus(ctx context.Context, foo *operatorv1.Moodle, podName, secretName, status string, url string) error {
 	// NEVER modify objects from the store. It's a read-only, local cache.
 	// You can use DeepCopy() to make a deep copy of original object and modify this copy
 	// Or create a copy manually for better performance
 	fooCopy := foo.DeepCopy()
-	fmt.Println("Cunnyyyyyyyyyyyyyyyyyyyy ", fooCopy.Status)
 	fooCopy.Status.PodName = podName
 	if secretName != "" {
 		fooCopy.Status.SecretName = secretName
@@ -458,8 +449,7 @@ func (c *MoodleController) updateMoodleStatus(foo *operatorv1.Moodle, podName, s
 	// update the Status block of the Foo resource. UpdateStatus will not
 	// allow changes to the Spec of the resource, which is ideal for ensuring
 	// nothing other than resource status has been updated.
-	foo2, err := c.sampleclientset.MoodlecontrollerV1().Moodles(foo.Namespace).Update(fooCopy)
-	c.logger.Info("MoodleController.go : Updating status result", "error", err, "new object", foo2)
+	_, err := c.sampleclientset.MoodlecontrollerV1().Moodles(foo.Namespace).Update(ctx, fooCopy, metav1.UpdateOptions{})
 	return err
 }
 

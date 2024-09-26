@@ -5,7 +5,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	moodlecontroller "github.com/cloud-ark/kubeplus-operators/moodle/pkg/apis/moodlecontroller"
+	moodlecontroller "github.com/smugug/keysaas/pkg/apis/moodlecontroller"
 )
 
 // SchemeGroupVersion is group version used to register these objects

@@ -22,9 +22,10 @@ import (
 	"fmt"
 	"time"
 
-	clientset "github.com/cloud-ark/kubeplus-operators/moodle/pkg/client/clientset/versioned"
-	informers "github.com/cloud-ark/kubeplus-operators/moodle/pkg/client/informers/externalversions"
-	"github.com/cloud-ark/kubeplus-operators/moodle/pkg/signals"
+	clientset "github.com/smugug/keysaas/pkg/generated/clientset/versioned"
+	informers "github.com/smugug/keysaas/pkg/generated/informers/externalversions"
+	"github.com/smugug/keysaas/pkg/signals"
+
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
