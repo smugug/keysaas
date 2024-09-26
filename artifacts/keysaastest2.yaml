@@ -4,3 +4,4 @@ metadata:
   name: keysaastest2
   namespace: customer2
 spec:
+  domainName: "keysaastest2.local"

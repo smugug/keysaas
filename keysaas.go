@@ -147,7 +147,7 @@ func (c *KeysaasController) createIngress(foo *operatorv1.Keysaas) {
 	} else if err != nil {
 		panic(err)
 	}
-	c.logger.Info("KeysaasController.go : Created Ingress %q.\n", result.GetObjectMeta().GetName())
+	c.logger.Info("KeysaasController.go : Created Ingress.", "ingress name", result.GetObjectMeta().GetName())
 }
 
 func getIngress(foo *operatorv1.Keysaas, specObj networkingv1.IngressSpec, keysaasName, tls string) *networkingv1.Ingress {
@@ -159,10 +159,10 @@ func getIngress(foo *operatorv1.Keysaas, specObj networkingv1.IngressSpec, keysa
 			ObjectMeta: metav1.ObjectMeta{
 				Name: keysaasName,
 				Annotations: map[string]string{
-					"kubernetes.io/ingress.class":                "nginx",
-					"nginx.ingress.kubernetes.io/rewrite-target": "/",
-					"certmanager.k8s.io/issuer":                  keysaasName,
-					"certmanager.k8s.io/acme-challenge-type":     "http01",
+					"spec.ingressClassName": "haproxy",
+					// "nginx.ingress.kubernetes.io/rewrite-target": "/",
+					"certmanager.k8s.io/issuer":              keysaasName,
+					"certmanager.k8s.io/acme-challenge-type": "http01",
 				},
 				OwnerReferences: []metav1.OwnerReference{
 					{
@@ -180,9 +180,11 @@ func getIngress(foo *operatorv1.Keysaas, specObj networkingv1.IngressSpec, keysa
 			ObjectMeta: metav1.ObjectMeta{
 				Name: keysaasName,
 				Annotations: map[string]string{
-					"kubernetes.io/ingress.class":                "nginx",
-					"nginx.ingress.kubernetes.io/ssl-redirect":   "false",
-					"nginx.ingress.kubernetes.io/rewrite-target": "/",
+					// "spec.ingressClassName":                      "nginx",
+					// "nginx.ingress.kubernetes.io/ssl-redirect":   "false",
+					// "nginx.ingress.kubernetes.io/rewrite-target": "/",
+					"spec.ingressClassName": "haproxy",
+					// "nginx.ingress.kubernetes.io/rewrite-target": "/",
 				},
 				OwnerReferences: []metav1.OwnerReference{
 					{
@@ -232,8 +234,11 @@ func getIngressSpec(keysaasPort int, keysaasDomainName, keysaasPath, keysaasTLSC
 
 	var specObj networkingv1.IngressSpec
 	pathType := networkingv1.PathTypePrefix
+	fmt.Println("CUNNNNNNNNNNYYYYYYYYYYYYYYYY HAPROXYYYYYYYYYYYYy")
+	ingressClass := "haproxy"
 	if len(tls) > 0 {
 		specObj = networkingv1.IngressSpec{
+			IngressClassName: &ingressClass,
 			TLS: []networkingv1.IngressTLS{
 				{
 					Hosts:      []string{keysaasDomainName},
@@ -252,7 +257,7 @@ func getIngressSpec(keysaasPort int, keysaasDomainName, keysaasPath, keysaasTLSC
 										Service: &networkingv1.IngressServiceBackend{
 											Name: keysaasServiceName,
 											Port: networkingv1.ServiceBackendPort{
-												Number: 80,
+												Number: 80, //port of service
 											},
 										},
 										//apiutil.FromInt(keysaasPort),
@@ -267,6 +272,7 @@ func getIngressSpec(keysaasPort int, keysaasDomainName, keysaasPath, keysaasTLSC
 		}
 	} else {
 		specObj = networkingv1.IngressSpec{
+			IngressClassName: &ingressClass,
 			Rules: []networkingv1.IngressRule{
 				{
 					Host: keysaasDomainName,
@@ -802,9 +808,9 @@ func getServiceSpec(keysaasPort int, deploymentName, domainName string) (apiv1.S
 			Ports: []apiv1.ServicePort{
 				{
 					Name:       "my-port",
-					Port:       int32(keysaasPort),
-					TargetPort: apiutil.FromInt(TEST_PORT), //apiutil.FromInt(keysaasPort),
-					NodePort:   int32(keysaasPort),
+					Port:       80,                         //internally exposed port
+					TargetPort: apiutil.FromInt(TEST_PORT), //port on pod
+					NodePort:   int32(keysaasPort),         //externally exposed port
 					Protocol:   apiv1.ProtocolTCP,
 				},
 			},
@@ -823,9 +829,8 @@ func getServiceSpec(keysaasPort int, deploymentName, domainName string) (apiv1.S
 					Name: "my-port",
 					//Port:       int32(keysaasPort),
 					Port:       80,
-					TargetPort: apiutil.FromInt(keysaasPort),
-					//NodePort:   int32(KEYSAAS_PORT),
-					Protocol: apiv1.ProtocolTCP,
+					TargetPort: apiutil.FromInt(TEST_PORT),
+					Protocol:   apiv1.ProtocolTCP,
 				},
 			},
 			Selector: map[string]string{

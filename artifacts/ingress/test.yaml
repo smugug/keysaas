@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keysaastest-ingress
+  namespace: customer2
+spec:
+  ingressClassName: haproxy
+  rules:
+  - host: 'keysaastest.local'
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: keysaastest
+            port:
+              number: 80
+
+Name:             keysaastest-ingress
+Labels:           <none>
+Namespace:        customer2
+Address:          10.96.32.29
+Ingress Class:    haproxy
+Default backend:  <default>
+Rules:
+  Host               Path  Backends
+  ----               ----  --------
+  keysaastest.local  
+                     /   keysaastest:80 (10.244.0.13:8000)
+Annotations:         <none>
+Events:              <none>
