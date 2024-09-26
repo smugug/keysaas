@@ -5,11 +5,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	moodlecontroller "github.com/smugug/keysaas/pkg/apis/moodlecontroller"
+	keysaascontroller "github.com/smugug/keysaas/pkg/apis/keysaascontroller"
 )
 
 // SchemeGroupVersion is group version used to register these objects
-var SchemeGroupVersion = schema.GroupVersion{Group: moodlecontroller.GroupName, Version: "v1"}
+var SchemeGroupVersion = schema.GroupVersion{Group: keysaascontroller.GroupName, Version: "v1"}
 
 // Kind takes an unqualified kind and returns back a Group qualified GroupKind
 func Kind(kind string) schema.GroupKind {
@@ -29,8 +29,8 @@ var (
 // Adds the list of known types to Scheme.
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
-		&Moodle{},
-		&MoodleList{},
+		&Keysaas{},
+		&KeysaasList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

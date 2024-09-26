@@ -20,8 +20,8 @@ package fake
 
 import (
 	clientset "github.com/smugug/keysaas/pkg/generated/clientset/versioned"
-	moodlecontrollerv1 "github.com/smugug/keysaas/pkg/generated/clientset/versioned/typed/moodlecontroller/v1"
-	fakemoodlecontrollerv1 "github.com/smugug/keysaas/pkg/generated/clientset/versioned/typed/moodlecontroller/v1/fake"
+	keysaascontrollerv1 "github.com/smugug/keysaas/pkg/generated/clientset/versioned/typed/keysaascontroller/v1"
+	fakekeysaascontrollerv1 "github.com/smugug/keysaas/pkg/generated/clientset/versioned/typed/keysaascontroller/v1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -83,7 +83,7 @@ var (
 	_ testing.FakeClient  = &Clientset{}
 )
 
-// MoodlecontrollerV1 retrieves the MoodlecontrollerV1Client
-func (c *Clientset) MoodlecontrollerV1() moodlecontrollerv1.MoodlecontrollerV1Interface {
-	return &fakemoodlecontrollerv1.FakeMoodlecontrollerV1{Fake: &c.Fake}
+// KeysaascontrollerV1 retrieves the KeysaascontrollerV1Client
+func (c *Clientset) KeysaascontrollerV1() keysaascontrollerv1.KeysaascontrollerV1Interface {
+	return &fakekeysaascontrollerv1.FakeKeysaascontrollerV1{Fake: &c.Fake}
 }

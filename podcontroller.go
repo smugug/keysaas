@@ -13,7 +13,7 @@ import (
 
 	"github.com/golang/glog"
 	operatorscheme "github.com/smugug/keysaas/pkg/generated/clientset/versioned/scheme"
-	listers "github.com/smugug/keysaas/pkg/generated/listers/moodlecontroller/v1"
+	listers "github.com/smugug/keysaas/pkg/generated/listers/keysaascontroller/v1"
 	"github.com/smugug/keysaas/pkg/utils"
 	"github.com/smugug/keysaas/pkg/utils/constants"
 	corev1 "k8s.io/api/core/v1"
@@ -28,12 +28,12 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-// PodController handles Moodle pods
+// PodController handles Keysaas pods
 type PodController struct {
 	cfg *restclient.Config
 	// kubeclientset is a standard kubernetes clientset
 	kubeclientset kubernetes.Interface
-	moodleLister  listers.MoodleLister
+	keysaasLister listers.KeysaasLister
 	podsLister    corelisters.PodLister
 	podsSynced    cache.InformerSynced
 	podqueue      workqueue.RateLimitingInterface
@@ -47,14 +47,14 @@ type PodController struct {
 func NewPodController(
 	cfg *restclient.Config,
 	kubeclientset kubernetes.Interface,
-	moodleLister_ listers.MoodleLister,
+	keysaasLister_ listers.KeysaasLister,
 	kubeInformerFactory kubeinformers.SharedInformerFactory) *PodController {
 
 	podInformer := kubeInformerFactory.Core().V1().Pods()
 
 	// Create event broadcaster
-	// Add moodle-controller types to the default Kubernetes Scheme so Events can be
-	// logged for moodle-controller types.
+	// Add keysaas-controller types to the default Kubernetes Scheme so Events can be
+	// logged for keysaas-controller types.
 	operatorscheme.AddToScheme(scheme.Scheme)
 	glog.V(4).Info("Creating event broadcaster")
 	eventBroadcaster := record.NewBroadcaster()
@@ -66,7 +66,7 @@ func NewPodController(
 	controller := &PodController{
 		cfg:           cfg,
 		kubeclientset: kubeclientset,
-		moodleLister:  moodleLister_,
+		keysaasLister: keysaasLister_,
 		podsLister:    podInformer.Lister(),
 		podsSynced:    podInformer.Informer().HasSynced,
 		podqueue:      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Pods"),
@@ -101,7 +101,7 @@ func (c *PodController) Run(threadiness int, stopCh <-chan struct{}) error {
 
 	glog.Info("Starting workers")
 
-	// Launch two workers to process Moodle resources
+	// Launch two workers to process Keysaas resources
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(c.runWorker, time.Second*20, stopCh)
 	}
@@ -200,24 +200,24 @@ func (c *PodController) handlePod(key string) error {
 	}
 	ownerReferences = deployment.GetOwnerReferences()
 	if len(ownerReferences) == 0 {
-		// fmt.Println("PodController.go     : deployment does not have any owner references. Cannot be a moodle.")
+		// fmt.Println("PodController.go     : deployment does not have any owner references. Cannot be a keysaas.")
 		return nil
 	}
 
-	if ownerReferences[0].Kind != "Moodle" {
-		// fmt.Println("PodController.go     : The pod event is not a Moodle instance. Skipping!")
+	if ownerReferences[0].Kind != "Keysaas" {
+		// fmt.Println("PodController.go     : The pod event is not a Keysaas instance. Skipping!")
 		return nil
 	}
 
-	_, err = c.moodleLister.Moodles(namespace).Get(ownerReferences[0].Name)
+	_, err = c.keysaasLister.Keysaases(namespace).Get(ownerReferences[0].Name)
 	if err != nil {
-		return fmt.Errorf("PodController.go: Could not find the Moodle instance : %s", ownerReferences[0].Name)
+		return fmt.Errorf("PodController.go: Could not find the Keysaas instance : %s", ownerReferences[0].Name)
 	}
 	if _, success := c.util.WaitForPod(constants.TIMEOUT, name, namespace); !success {
-		return fmt.Errorf("PodController.go: The Moodle Pod failed to start running")
+		return fmt.Errorf("PodController.go: The Keysaas Pod failed to start running")
 	}
-	// supported, _ := c.util.GetSupportedPlugins(moodle.Spec.Plugins)
-	// erredPlugins := c.util.EnsurePluginsInstalled(moodle, supported, name, namespace, constants.PLUGIN_MAP)
+	// supported, _ := c.util.GetSupportedPlugins(keysaas.Spec.Plugins)
+	// erredPlugins := c.util.EnsurePluginsInstalled(keysaas, supported, name, namespace, constants.PLUGIN_MAP)
 	// if len(erredPlugins) > 0 {
 	// 	return fmt.Errorf("PodController.go: Some plugins failed to install. Cannot ensure state. %v", erredPlugins)
 	// }

@@ -22,7 +22,7 @@ import (
 	fmt "fmt"
 	http "net/http"
 
-	moodlecontrollerv1 "github.com/smugug/keysaas/pkg/generated/clientset/versioned/typed/moodlecontroller/v1"
+	keysaascontrollerv1 "github.com/smugug/keysaas/pkg/generated/clientset/versioned/typed/keysaascontroller/v1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -30,18 +30,18 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
-	MoodlecontrollerV1() moodlecontrollerv1.MoodlecontrollerV1Interface
+	KeysaascontrollerV1() keysaascontrollerv1.KeysaascontrollerV1Interface
 }
 
 // Clientset contains the clients for groups.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	moodlecontrollerV1 *moodlecontrollerv1.MoodlecontrollerV1Client
+	keysaascontrollerV1 *keysaascontrollerv1.KeysaascontrollerV1Client
 }
 
-// MoodlecontrollerV1 retrieves the MoodlecontrollerV1Client
-func (c *Clientset) MoodlecontrollerV1() moodlecontrollerv1.MoodlecontrollerV1Interface {
-	return c.moodlecontrollerV1
+// KeysaascontrollerV1 retrieves the KeysaascontrollerV1Client
+func (c *Clientset) KeysaascontrollerV1() keysaascontrollerv1.KeysaascontrollerV1Interface {
+	return c.keysaascontrollerV1
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -88,7 +88,7 @@ func NewForConfigAndClient(c *rest.Config, httpClient *http.Client) (*Clientset,
 
 	var cs Clientset
 	var err error
-	cs.moodlecontrollerV1, err = moodlecontrollerv1.NewForConfigAndClient(&configShallowCopy, httpClient)
+	cs.keysaascontrollerV1, err = keysaascontrollerv1.NewForConfigAndClient(&configShallowCopy, httpClient)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
-	cs.moodlecontrollerV1 = moodlecontrollerv1.New(c)
+	cs.keysaascontrollerV1 = keysaascontrollerv1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

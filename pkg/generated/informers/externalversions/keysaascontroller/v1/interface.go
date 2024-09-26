@@ -24,8 +24,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
-	// Moodles returns a MoodleInformer.
-	Moodles() MoodleInformer
+	// Keysaases returns a KeysaasInformer.
+	Keysaases() KeysaasInformer
 }
 
 type version struct {
@@ -39,7 +39,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// Moodles returns a MoodleInformer.
-func (v *version) Moodles() MoodleInformer {
-	return &moodleInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// Keysaases returns a KeysaasInformer.
+func (v *version) Keysaases() KeysaasInformer {
+	return &keysaasInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

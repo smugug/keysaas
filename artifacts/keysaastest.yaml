@@ -1,6 +1,6 @@
 apiVersion: keysaascontroller.keysaas/v1
 kind: Keysaas
 metadata:
-  name: keysaastest2
+  name: keysaastest
   namespace: customer2
 spec:

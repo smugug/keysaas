@@ -21,29 +21,29 @@ package v1
 import (
 	http "net/http"
 
-	moodlecontrollerv1 "github.com/smugug/keysaas/pkg/apis/moodlecontroller/v1"
+	keysaascontrollerv1 "github.com/smugug/keysaas/pkg/apis/keysaascontroller/v1"
 	scheme "github.com/smugug/keysaas/pkg/generated/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 
-type MoodlecontrollerV1Interface interface {
+type KeysaascontrollerV1Interface interface {
 	RESTClient() rest.Interface
-	MoodlesGetter
+	KeysaasesGetter
 }
 
-// MoodlecontrollerV1Client is used to interact with features provided by the moodlecontroller.kubeplus group.
-type MoodlecontrollerV1Client struct {
+// KeysaascontrollerV1Client is used to interact with features provided by the keysaascontroller.keysaas group.
+type KeysaascontrollerV1Client struct {
 	restClient rest.Interface
 }
 
-func (c *MoodlecontrollerV1Client) Moodles(namespace string) MoodleInterface {
-	return newMoodles(c, namespace)
+func (c *KeysaascontrollerV1Client) Keysaases(namespace string) KeysaasInterface {
+	return newKeysaases(c, namespace)
 }
 
-// NewForConfig creates a new MoodlecontrollerV1Client for the given config.
+// NewForConfig creates a new KeysaascontrollerV1Client for the given config.
 // NewForConfig is equivalent to NewForConfigAndClient(c, httpClient),
 // where httpClient was generated with rest.HTTPClientFor(c).
-func NewForConfig(c *rest.Config) (*MoodlecontrollerV1Client, error) {
+func NewForConfig(c *rest.Config) (*KeysaascontrollerV1Client, error) {
 	config := *c
 	if err := setConfigDefaults(&config); err != nil {
 		return nil, err
@@ -55,9 +55,9 @@ func NewForConfig(c *rest.Config) (*MoodlecontrollerV1Client, error) {
 	return NewForConfigAndClient(&config, httpClient)
 }
 
-// NewForConfigAndClient creates a new MoodlecontrollerV1Client for the given config and http client.
+// NewForConfigAndClient creates a new KeysaascontrollerV1Client for the given config and http client.
 // Note the http client provided takes precedence over the configured transport values.
-func NewForConfigAndClient(c *rest.Config, h *http.Client) (*MoodlecontrollerV1Client, error) {
+func NewForConfigAndClient(c *rest.Config, h *http.Client) (*KeysaascontrollerV1Client, error) {
 	config := *c
 	if err := setConfigDefaults(&config); err != nil {
 		return nil, err
@@ -66,12 +66,12 @@ func NewForConfigAndClient(c *rest.Config, h *http.Client) (*MoodlecontrollerV1C
 	if err != nil {
 		return nil, err
 	}
-	return &MoodlecontrollerV1Client{client}, nil
+	return &KeysaascontrollerV1Client{client}, nil
 }
 
-// NewForConfigOrDie creates a new MoodlecontrollerV1Client for the given config and
+// NewForConfigOrDie creates a new KeysaascontrollerV1Client for the given config and
 // panics if there is an error in the config.
-func NewForConfigOrDie(c *rest.Config) *MoodlecontrollerV1Client {
+func NewForConfigOrDie(c *rest.Config) *KeysaascontrollerV1Client {
 	client, err := NewForConfig(c)
 	if err != nil {
 		panic(err)
@@ -79,13 +79,13 @@ func NewForConfigOrDie(c *rest.Config) *MoodlecontrollerV1Client {
 	return client
 }
 
-// New creates a new MoodlecontrollerV1Client for the given RESTClient.
-func New(c rest.Interface) *MoodlecontrollerV1Client {
-	return &MoodlecontrollerV1Client{c}
+// New creates a new KeysaascontrollerV1Client for the given RESTClient.
+func New(c rest.Interface) *KeysaascontrollerV1Client {
+	return &KeysaascontrollerV1Client{c}
 }
 
 func setConfigDefaults(config *rest.Config) error {
-	gv := moodlecontrollerv1.SchemeGroupVersion
+	gv := keysaascontrollerv1.SchemeGroupVersion
 	config.GroupVersion = &gv
 	config.APIPath = "/apis"
 	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
@@ -99,7 +99,7 @@ func setConfigDefaults(config *rest.Config) error {
 
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
-func (c *MoodlecontrollerV1Client) RESTClient() rest.Interface {
+func (c *KeysaascontrollerV1Client) RESTClient() rest.Interface {
 	if c == nil {
 		return nil
 	}

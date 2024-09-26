@@ -22,69 +22,69 @@ import (
 	context "context"
 	time "time"
 
-	apismoodlecontrollerv1 "github.com/smugug/keysaas/pkg/apis/moodlecontroller/v1"
+	apiskeysaascontrollerv1 "github.com/smugug/keysaas/pkg/apis/keysaascontroller/v1"
 	versioned "github.com/smugug/keysaas/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/smugug/keysaas/pkg/generated/informers/externalversions/internalinterfaces"
-	moodlecontrollerv1 "github.com/smugug/keysaas/pkg/generated/listers/moodlecontroller/v1"
+	keysaascontrollerv1 "github.com/smugug/keysaas/pkg/generated/listers/keysaascontroller/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// MoodleInformer provides access to a shared informer and lister for
-// Moodles.
-type MoodleInformer interface {
+// KeysaasInformer provides access to a shared informer and lister for
+// Keysaases.
+type KeysaasInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() moodlecontrollerv1.MoodleLister
+	Lister() keysaascontrollerv1.KeysaasLister
 }
 
-type moodleInformer struct {
+type keysaasInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewMoodleInformer constructs a new informer for Moodle type.
+// NewKeysaasInformer constructs a new informer for Keysaas type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewMoodleInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredMoodleInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewKeysaasInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredKeysaasInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredMoodleInformer constructs a new informer for Moodle type.
+// NewFilteredKeysaasInformer constructs a new informer for Keysaas type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredMoodleInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredKeysaasInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.MoodlecontrollerV1().Moodles(namespace).List(context.TODO(), options)
+				return client.KeysaascontrollerV1().Keysaases(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.MoodlecontrollerV1().Moodles(namespace).Watch(context.TODO(), options)
+				return client.KeysaascontrollerV1().Keysaases(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&apismoodlecontrollerv1.Moodle{},
+		&apiskeysaascontrollerv1.Keysaas{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *moodleInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredMoodleInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *keysaasInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredKeysaasInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *moodleInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apismoodlecontrollerv1.Moodle{}, f.defaultInformer)
+func (f *keysaasInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&apiskeysaascontrollerv1.Keysaas{}, f.defaultInformer)
 }
 
-func (f *moodleInformer) Lister() moodlecontrollerv1.MoodleLister {
-	return moodlecontrollerv1.NewMoodleLister(f.Informer().GetIndexer())
+func (f *keysaasInformer) Lister() keysaascontrollerv1.KeysaasLister {
+	return keysaascontrollerv1.NewKeysaasLister(f.Informer().GetIndexer())
 }

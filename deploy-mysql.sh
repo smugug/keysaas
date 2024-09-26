@@ -2,5 +2,5 @@
 
 echo "Deploying MySQL"
 
-kubectl create -f artifacts/moodle-mysql.yaml
+kubectl create -f artifacts/keysaas-mysql.yaml
 

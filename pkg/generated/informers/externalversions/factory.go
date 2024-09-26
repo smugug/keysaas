@@ -25,7 +25,7 @@ import (
 
 	versioned "github.com/smugug/keysaas/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/smugug/keysaas/pkg/generated/informers/externalversions/internalinterfaces"
-	moodlecontroller "github.com/smugug/keysaas/pkg/generated/informers/externalversions/moodlecontroller"
+	keysaascontroller "github.com/smugug/keysaas/pkg/generated/informers/externalversions/keysaascontroller"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -254,9 +254,9 @@ type SharedInformerFactory interface {
 	// client.
 	InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer
 
-	Moodlecontroller() moodlecontroller.Interface
+	Keysaascontroller() keysaascontroller.Interface
 }
 
-func (f *sharedInformerFactory) Moodlecontroller() moodlecontroller.Interface {
-	return moodlecontroller.New(f, f.namespace, f.tweakListOptions)
+func (f *sharedInformerFactory) Keysaascontroller() keysaascontroller.Interface {
+	return keysaascontroller.New(f, f.namespace, f.tweakListOptions)
 }

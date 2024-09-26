@@ -52,19 +52,19 @@ func main() {
 	}
 
 	kubeClient := kubernetes.NewForConfigOrDie(cfg)
-	moodleClient := clientset.NewForConfigOrDie(cfg)
+	keysaasClient := clientset.NewForConfigOrDie(cfg)
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, time.Second*30)
-	moodleInformerFactory := informers.NewSharedInformerFactory(moodleClient, time.Second*30)
+	keysaasInformerFactory := informers.NewSharedInformerFactory(keysaasClient, time.Second*30)
 
-	moodleController := NewMoodleController(ctx, cfg, kubeClient, moodleClient, kubeInformerFactory, moodleInformerFactory)
+	keysaasController := NewKeysaasController(ctx, cfg, kubeClient, keysaasClient, kubeInformerFactory, keysaasInformerFactory)
 
 	// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(ctx.done())
 	// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
 	kubeInformerFactory.Start(ctx.Done())
-	moodleInformerFactory.Start(ctx.Done())
+	keysaasInformerFactory.Start(ctx.Done())
 
-	if err = moodleController.Run(ctx, 1); err != nil {
+	if err = keysaasController.Run(ctx, 1); err != nil {
 		logger.Error(err, "Error running controller")
 		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 	}

@@ -30,14 +30,14 @@ func NewUtils(
 	utils := Utils{cfg: _cfg, kubeclientset: _kubeclientset}
 	return utils
 }
-func (u *Utils) Exec(pluginName, moodlePodName, namespace, downloadLink, installFolder string) bool {
+func (u *Utils) Exec(pluginName, keysaasPodName, namespace, downloadLink, installFolder string) bool {
 
 	fmt.Println("Inside exec")
 
-	_, err := u.kubeclientset.CoreV1().Pods(namespace).Get(context.TODO(), moodlePodName, metav1.GetOptions{})
+	_, err := u.kubeclientset.CoreV1().Pods(namespace).Get(context.TODO(), keysaasPodName, metav1.GetOptions{})
 
 	if err != nil {
-		fmt.Printf("Could not get the pod: %s\n", moodlePodName)
+		fmt.Printf("Could not get the pod: %s\n", keysaasPodName)
 		panic(err)
 	}
 
@@ -47,15 +47,15 @@ func (u *Utils) Exec(pluginName, moodlePodName, namespace, downloadLink, install
 
 	downloadPluginCmd := "wget " + downloadLink + " -O /tmp/" + pluginZipFileName
 	fmt.Printf("Download Plugin Cmd:%s\n", downloadPluginCmd)
-	u.ExecuteExecCall(moodlePodName, namespace, downloadPluginCmd)
+	u.ExecuteExecCall(keysaasPodName, namespace, downloadPluginCmd)
 
 	unzipPluginCmd := "unzip /tmp/" + pluginZipFileName + " -d " + "/tmp/."
 	fmt.Printf("Unzip Plugin Cmd:%s\n", unzipPluginCmd)
-	u.ExecuteExecCall(moodlePodName, namespace, unzipPluginCmd)
+	u.ExecuteExecCall(keysaasPodName, namespace, unzipPluginCmd)
 
 	mvPluginCmd := "mv /tmp/" + pluginName + " " + installFolder + "."
 	fmt.Printf("Move Plugin Cmd:%s\n", mvPluginCmd)
-	success := u.ExecuteExecCall(moodlePodName, namespace, mvPluginCmd)
+	success := u.ExecuteExecCall(keysaasPodName, namespace, mvPluginCmd)
 
 	if success {
 		fmt.Printf("Done installing plugin %s\n", pluginName)
@@ -71,11 +71,11 @@ Reference for kubectl exec:
 - https://stackoverflow.com/questions/43314689/example-of-exec-in-k8ss-pod-by-using-go-client/43315545#43315545
 - https://github.com/kubernetes/client-go/issues/204
 */
-func (u *Utils) ExecuteExecCall(moodlePodName, namespace, command string) bool {
+func (u *Utils) ExecuteExecCall(keysaasPodName, namespace, command string) bool {
 	fmt.Println("Inside ExecuteExecCall")
 	req := u.kubeclientset.CoreV1().RESTClient().Post().
 		Resource("pods").
-		Name(moodlePodName).
+		Name(keysaasPodName).
 		Namespace(namespace).
 		SubResource("exec")
 
@@ -124,7 +124,7 @@ func (u *Utils) ExecuteExecCall(moodlePodName, namespace, command string) bool {
 	return true
 }
 
-// func (u *Utils) EnsurePluginsInstalled(moodle *operatorv1.Moodle,
+// func (u *Utils) EnsurePluginsInstalled(keysaas *operatorv1.Keysaas,
 // 	supportedPlugins []string,
 // 	name,
 // 	namespace string,
@@ -173,7 +173,7 @@ func (u *Utils) WaitForPod(timeout int, podname, namespace string) (string, bool
 			fmt.Printf("The pod %s has failed.\n", podname)
 			return podname, false
 		}
-		fmt.Println("Waiting for Moodle Pod to get ready.")
+		fmt.Println("Waiting for Keysaas Pod to get ready.")
 		if elapsed >= timeout {
 			return podname, false
 		}

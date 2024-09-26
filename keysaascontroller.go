@@ -38,15 +38,15 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/go-logr/logr"
-	operatorv1 "github.com/smugug/keysaas/pkg/apis/moodlecontroller/v1"
+	operatorv1 "github.com/smugug/keysaas/pkg/apis/keysaascontroller/v1"
 	clientset "github.com/smugug/keysaas/pkg/generated/clientset/versioned"
 	operatorscheme "github.com/smugug/keysaas/pkg/generated/clientset/versioned/scheme"
 	informers "github.com/smugug/keysaas/pkg/generated/informers/externalversions"
-	listers "github.com/smugug/keysaas/pkg/generated/listers/moodlecontroller/v1"
+	listers "github.com/smugug/keysaas/pkg/generated/listers/keysaascontroller/v1"
 	"github.com/smugug/keysaas/pkg/utils"
 )
 
-const controllerAgentName = "moodle-controller"
+const controllerAgentName = "keysaas-controller"
 
 const (
 	// SuccessSynced is used as part of the Event 'reason' when a Foo is synced
@@ -66,15 +66,15 @@ const (
 )
 
 var (
-	MOODLE_PORT_BASE = 30060
-	MOODLE_PORT      int
+	KEYSAAS_PORT_BASE = 30060
+	KEYSAAS_PORT      int
 )
 
 func init() {
 }
 
 // Controller is the controller implementation for Foo resources
-type MoodleController struct {
+type KeysaasController struct {
 	//for logging
 	ctx context.Context
 	//For ultis
@@ -86,7 +86,7 @@ type MoodleController struct {
 
 	deploymentsLister appslisters.DeploymentLister
 	deploymentsSynced cache.InformerSynced
-	foosLister        listers.MoodleLister
+	foosLister        listers.KeysaasLister
 	foosSynced        cache.InformerSynced
 
 	// workqueue is a rate limited work queue. This is used to queue work to be
@@ -103,20 +103,20 @@ type MoodleController struct {
 }
 
 // NewController returns a new sample controller
-func NewMoodleController(
+func NewKeysaasController(
 	ctx context.Context,
 	cfg *restclient.Config,
 	kubeclientset kubernetes.Interface,
 	sampleclientset clientset.Interface,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
-	moodleInformerFactory informers.SharedInformerFactory) *MoodleController {
+	keysaasInformerFactory informers.SharedInformerFactory) *KeysaasController {
 
 	logger := klog.FromContext(ctx)
 
 	// obtain references to shared index informers for the Deplsoyment and Foo
 	// types.
 	deploymentInformer := kubeInformerFactory.Apps().V1().Deployments()
-	moodleInformer := moodleInformerFactory.Moodlecontroller().V1().Moodles()
+	keysaasInformer := keysaasInformerFactory.Keysaascontroller().V1().Keysaases()
 
 	// Create event broadcaster
 	// Add sample-controller types to the default Kubernetes Scheme so Events can be
@@ -132,15 +132,15 @@ func NewMoodleController(
 
 	utils := utils.NewUtils(cfg, kubeclientset)
 
-	controller := &MoodleController{
+	controller := &KeysaasController{
 		cfg:               cfg,
 		ctx:               ctx,
 		kubeclientset:     kubeclientset,
 		sampleclientset:   sampleclientset,
 		deploymentsLister: deploymentInformer.Lister(),
 		deploymentsSynced: deploymentInformer.Informer().HasSynced,
-		foosLister:        moodleInformer.Lister(),
-		foosSynced:        moodleInformer.Informer().HasSynced,
+		foosLister:        keysaasInformer.Lister(),
+		foosSynced:        keysaasInformer.Informer().HasSynced,
 		workqueue:         workqueue.NewTypedRateLimitingQueue(ratelimiter),
 		recorder:          recorder,
 		util:              utils,
@@ -155,14 +155,14 @@ func NewMoodleController(
 	// 		controller.enqueueFoo(new)
 	// 	},
 	// })
-	moodleInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	keysaasInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueueFoo,
 		UpdateFunc: func(old, new interface{}) {
 			controller.enqueueFoo(new)
-			// newDepl := new.(*operatorv1.Moodle)
-			// oldDepl := old.(*operatorv1.Moodle)
-			// //fmt.Println("MoodleController.go  : New Version:%s", newDepl.ResourceVersion)
-			// //fmt.Println("MoodleController.go  : Old Version:%s", oldDepl.ResourceVersion)
+			// newDepl := new.(*operatorv1.Keysaas)
+			// oldDepl := old.(*operatorv1.Keysaas)
+			// //fmt.Println("KeysaasController.go  : New Version:%s", newDepl.ResourceVersion)
+			// //fmt.Println("KeysaasController.go  : Old Version:%s", oldDepl.ResourceVersion)
 			// if newDepl.ResourceVersion == oldDepl.ResourceVersion {
 			// 	// Periodic resync will send update events for all known Deployments.
 			// 	// Two different versions of the same Deployment will always have different RVs.
@@ -200,11 +200,11 @@ func NewMoodleController(
 // as syncing informer caches and starting workers. It will block until stopCh
 // is closed, at which point it will shutdown the workqueue and wait for
 // workers to finish processing their current work items.
-func (c *MoodleController) Run(ctx context.Context, workers int) error {
+func (c *KeysaasController) Run(ctx context.Context, workers int) error {
 	defer utilruntime.HandleCrash()
 	defer c.workqueue.ShutDown()
 	// Start the informer factories to begin populating the informer caches
-	c.logger.Info("Starting Moodle controller")
+	c.logger.Info("Starting Keysaas controller")
 
 	// Wait for the caches to be synced before starting workers
 	c.logger.Info("Waiting for informer caches to sync")
@@ -229,14 +229,14 @@ func (c *MoodleController) Run(ctx context.Context, workers int) error {
 // runWorker is a long-running function that will continually call the
 // processNextWorkItem function in order to read and process a message on the
 // workqueue.
-func (c *MoodleController) runWorker(ctx context.Context) {
+func (c *KeysaasController) runWorker(ctx context.Context) {
 	for c.processNextWorkItem(ctx) {
 	}
 }
 
 // processNextWorkItem will read a single work item off the workqueue and
 // attempt to process it, by calling the syncHandler.
-func (c *MoodleController) processNextWorkItem(ctx context.Context) bool {
+func (c *KeysaasController) processNextWorkItem(ctx context.Context) bool {
 	objRef, shutdown := c.workqueue.Get()
 
 	if shutdown {
@@ -276,13 +276,13 @@ func (c *MoodleController) processNextWorkItem(ctx context.Context) bool {
 // syncHandler compares the actual state with the desired, and attempts to
 // converge the two. It then updates the Status block of the Foo resource
 // with the current status of the resource.
-func (c *MoodleController) syncHandler(ctx context.Context, objRef cache.ObjectName) error {
+func (c *KeysaasController) syncHandler(ctx context.Context, objRef cache.ObjectName) error {
 	c.logger.Info("Start sync handling", "objRef", objRef)
 	// Convert the namespace/name string into a distinct namespace and name
 	namespace := objRef.Namespace
 	name := objRef.Name
 	// Get the Foo resource with this namespace/name
-	foo, err := c.foosLister.Moodles(namespace).Get(name)
+	foo, err := c.foosLister.Keysaases(namespace).Get(name)
 	if err != nil {
 		// The Foo resource may no longer exist, in which case we stop
 		// processing.
@@ -294,33 +294,33 @@ func (c *MoodleController) syncHandler(ctx context.Context, objRef cache.ObjectN
 		return err
 	}
 
-	c.logger.Info("MoodleController.go  : **************************************")
-	moodleName := foo.Name
-	moodleNamespace := foo.Namespace
-	c.logger.Info("MoodleController.go", "moodle name", moodleName)
-	c.logger.Info("MoodleController.go", "moodle namespace", moodleNamespace)
+	c.logger.Info("KeysaasController.go  : **************************************")
+	keysaasName := foo.Name
+	keysaasNamespace := foo.Namespace
+	c.logger.Info("KeysaasController.go", "keysaas name", keysaasName)
+	c.logger.Info("KeysaasController.go", "keysaas namespace", keysaasNamespace)
 
 	var status, url string
 	initialDeployment := c.isInitialDeployment(foo)
 
-	if foo.Status.Status != "" && foo.Status.Status == "Moodle Pod Timeout" {
+	if foo.Status.Status != "" && foo.Status.Status == "Keysaas Pod Timeout" {
 		return nil
 	}
 
 	if initialDeployment {
 
-		moodleDomainName := foo.Spec.DomainName
+		keysaasDomainName := foo.Spec.DomainName
 
-		c.logger.Info("MoodleController.go", "domain name", moodleDomainName)
+		c.logger.Info("KeysaasController.go", "domain name", keysaasDomainName)
 
-		MOODLE_PORT = MOODLE_PORT_BASE
-		MOODLE_PORT_BASE = MOODLE_PORT_BASE + 1
+		KEYSAAS_PORT = KEYSAAS_PORT_BASE
+		KEYSAAS_PORT_BASE = KEYSAAS_PORT_BASE + 1
 
-		c.logger.Info("MoodleController.go: Deploying Moodle", "port", MOODLE_PORT)
+		c.logger.Info("KeysaasController.go: Deploying Keysaas", "port", KEYSAAS_PORT)
 
 		initialDeployment = false
 
-		serviceURL, podName, secretName, err := c.deployMoodle(ctx, foo)
+		serviceURL, podName, secretName, err := c.deployKeysaas(ctx, foo)
 
 		//var correctlyInstalledPlugins []string
 		if err != nil {
@@ -328,18 +328,18 @@ func (c *MoodleController) syncHandler(ctx context.Context, objRef cache.ObjectN
 		} else {
 			status = "Ready"
 			url = "http://" + serviceURL
-			c.logger.Info("MoodleController.go : Ready", "moodle URL", url)
+			c.logger.Info("KeysaasController.go : Ready", "keysaas URL", url)
 			//supportedPlugins, unsupportedPlugins = c.util.GetSupportedPlugins(plugins)
 			//correctlyInstalledPlugins = c.getDiff(supportedPlugins, erredPlugins)
 		}
-		c.logger.Info("MoodleController.go : Updating status")
-		err = c.updateMoodleStatus(ctx, foo, podName, secretName, status, url)
+		c.logger.Info("KeysaasController.go : Updating status")
+		err = c.updateKeysaasStatus(ctx, foo, podName, secretName, status, url)
 		if err != nil {
-			c.logger.Info("MoodleController.go : Updating error", "error", err)
+			c.logger.Info("KeysaasController.go : Updating error", "error", err)
 			return err
 		}
 	} else {
-		c.logger.Info("MoodleController.go : Moodle custom resource did not change", "moodle name", moodleName)
+		c.logger.Info("KeysaasController.go : Keysaas custom resource did not change", "keysaas name", keysaasName)
 	}
 
 	// else {
@@ -353,13 +353,13 @@ func (c *MoodleController) syncHandler(ctx context.Context, objRef cache.ObjectN
 	// 		supportedPlugins = foo.Status.InstalledPlugins
 	// 		supportedPlugins = append(supportedPlugins, installedPlugins...)
 	// 		if len(erredPlugins) > 0 {
-	// 			c.updateMoodleStatus(foo, podName, "", "Error in installing some plugins", url, &supportedPlugins, &unsupportedPlugins)
+	// 			c.updateKeysaasStatus(foo, podName, "", "Error in installing some plugins", url, &supportedPlugins, &unsupportedPlugins)
 	// 		} else {
-	// 			c.updateMoodleStatus(foo, podName, "", status, url, &supportedPlugins, &unsupportedPlugins)
+	// 			c.updateKeysaasStatus(foo, podName, "", status, url, &supportedPlugins, &unsupportedPlugins)
 	// 		}
 	// 		c.recorder.Event(foo, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	// 	} else {
-	// 		c.logger.Info("MoodleController.go  : Moodle custom resource did not change. No plugin installed.", "moodle name", moodleName)
+	// 		c.logger.Info("KeysaasController.go  : Keysaas custom resource did not change. No plugin installed.", "keysaas name", keysaasName)
 	// 	}
 	// }
 
@@ -423,7 +423,7 @@ func (c *MoodleController) syncHandler(ctx context.Context, objRef cache.ObjectN
 // enqueueFoo takes a Foo resource and converts it into a namespace/name
 // string which is then put onto the work queue. This method should *not* be
 // passed resources of any type other than Foo.
-func (c *MoodleController) enqueueFoo(obj interface{}) {
+func (c *KeysaasController) enqueueFoo(obj interface{}) {
 	if objectRef, err := cache.ObjectToName(obj); err != nil {
 		utilruntime.HandleError(err)
 		return
@@ -432,7 +432,7 @@ func (c *MoodleController) enqueueFoo(obj interface{}) {
 	}
 }
 
-func (c *MoodleController) updateMoodleStatus(ctx context.Context, foo *operatorv1.Moodle, podName, secretName, status string, url string) error {
+func (c *KeysaasController) updateKeysaasStatus(ctx context.Context, foo *operatorv1.Keysaas, podName, secretName, status string, url string) error {
 	// NEVER modify objects from the store. It's a read-only, local cache.
 	// You can use DeepCopy() to make a deep copy of original object and modify this copy
 	// Or create a copy manually for better performance
@@ -449,7 +449,7 @@ func (c *MoodleController) updateMoodleStatus(ctx context.Context, foo *operator
 	// update the Status block of the Foo resource. UpdateStatus will not
 	// allow changes to the Spec of the resource, which is ideal for ensuring
 	// nothing other than resource status has been updated.
-	_, err := c.sampleclientset.MoodlecontrollerV1().Moodles(foo.Namespace).Update(ctx, fooCopy, metav1.UpdateOptions{})
+	_, err := c.sampleclientset.KeysaascontrollerV1().Keysaases(foo.Namespace).Update(ctx, fooCopy, metav1.UpdateOptions{})
 	return err
 }
 

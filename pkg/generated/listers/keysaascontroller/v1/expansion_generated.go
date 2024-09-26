@@ -18,10 +18,10 @@ limitations under the License.
 
 package v1
 
-// MoodleListerExpansion allows custom methods to be added to
-// MoodleLister.
-type MoodleListerExpansion interface{}
+// KeysaasListerExpansion allows custom methods to be added to
+// KeysaasLister.
+type KeysaasListerExpansion interface{}
 
-// MoodleNamespaceListerExpansion allows custom methods to be added to
-// MoodleNamespaceLister.
-type MoodleNamespaceListerExpansion interface{}
+// KeysaasNamespaceListerExpansion allows custom methods to be added to
+// KeysaasNamespaceLister.
+type KeysaasNamespaceListerExpansion interface{}

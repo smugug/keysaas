@@ -1,21 +1,21 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: moodle2-mysql
+  name: keysaas2-mysql
   namespace: customer2
   labels:
-    app: moodle2-mysql
+    app: keysaas2-mysql
 spec:
   ports:
     - port: 3306
   selector:
-    app: moodle2-mysql
+    app: keysaas2-mysql
   type: ClusterIP
 ---
 # kind: PersistentVolume
 # apiVersion: v1
 # metadata:
-#   name: moodle2-mysql-data
+#   name: keysaas2-mysql-data
 #   labels:
 #     type: local
 # spec:
@@ -30,10 +30,10 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: moodle2-mysql-data
+  name: keysaas2-mysql-data
   namespace: customer2
   labels:
-    app: moodle2-mysql
+    app: keysaas2-mysql
 spec:
   accessModes:
     - ReadWriteOnce
@@ -44,18 +44,18 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: moodle2-mysql
+  name: keysaas2-mysql
   namespace: customer2
   labels:
-    app: moodle2-mysql
+    app: keysaas2-mysql
 spec:
   selector:
     matchLabels:
-      app: moodle2-mysql
+      app: keysaas2-mysql
   template:
     metadata:
       labels:
-        app: moodle2-mysql
+        app: keysaas2-mysql
     spec:
       containers:
       - name: mysql
@@ -65,7 +65,7 @@ spec:
         - name: MYSQL_ROOT_PASSWORD
           value: password1
         - name: MYSQL_DATABASE
-          value: moodle
+          value: keysaas
         - name: MYSQL_USER
           value: user1
         - name: MYSQL_PASSWORD
@@ -82,7 +82,7 @@ spec:
       volumes:
       - name: mysql-persistent-storage
         persistentVolumeClaim:
-          claimName: moodle2-mysql-data
+          claimName: keysaas2-mysql-data
 ---
 # apiVersion: v1
 # kind: Secret

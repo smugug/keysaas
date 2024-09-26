@@ -8,27 +8,27 @@ import (
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// Moodle is a specification for a Moodle resource
+// Keysaas is a specification for a Keysaas resource
 // +k8s:openapi-gen=true
-type Moodle struct {
+type Keysaas struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   MoodleSpec   `json:"spec"`
-	Status MoodleStatus `json:"status"`
+	Spec   KeysaasSpec   `json:"spec"`
+	Status KeysaasStatus `json:"status"`
 }
 
-// MoodleSpec is the spec for a MoodleSpec resource
+// KeysaasSpec is the spec for a KeysaasSpec resource
 // +k8s:openapi-gen=true
-type MoodleSpec struct {
+type KeysaasSpec struct {
 	//MySQL Service name
 	MySQLServiceName string `json:"mySQLServiceName"`
 	//MySQL Username
 	MySQLUserName string `json:"mySQLUserName"`
 	//MySQL Password
 	MySQLUserPassword string `json:"mySQLUserPassword"`
-	//Moodle Admin Email
-	MoodleAdminEmail string `json:"moodleAdminEmail"`
+	//Keysaas Admin Email
+	KeysaasAdminEmail string `json:"keysaasAdminEmail"`
 	//PVC Volume Name
 	PvcVolumeName string `json:"pvcVolumeName"`
 	//Domain Name
@@ -37,9 +37,9 @@ type MoodleSpec struct {
 	Tls string `json:"tls"`
 }
 
-// MoodleStatus is the status for a Moodle resource
+// KeysaasStatus is the status for a Keysaas resource
 // +k8s:openapi-gen=true
-type MoodleStatus struct {
+type KeysaasStatus struct {
 	PodName    string `json:"podName"`
 	SecretName string `json:"secretName"`
 	Status     string `json:"status"`
@@ -47,10 +47,10 @@ type MoodleStatus struct {
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// MoodleList is a list of Moodle resources
-type MoodleList struct {
+// KeysaasList is a list of Keysaas resources
+type KeysaasList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
 
-	Items []Moodle `json:"items"`
+	Items []Keysaas `json:"items"`
 }

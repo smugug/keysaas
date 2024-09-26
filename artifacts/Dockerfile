@@ -1,3 +1,3 @@
 FROM ubuntu
-ADD moodle /
-ENTRYPOINT ["/moodle"]
+ADD keysaas /
+ENTRYPOINT ["/keysaas"]
