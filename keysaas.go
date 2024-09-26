@@ -26,20 +26,71 @@ const TEST_PORT = 8000
 func (c *KeysaasController) deployKeysaas(ctx context.Context, foo *operatorv1.Keysaas) (string, string, string, error) {
 	c.logger.Info("KeysaasController.go : Inside deployKeysaas")
 	var keysaasPodName, serviceURIToReturn string
+	var err error = nil
+	deleteFuncs := []func(foo *operatorv1.Keysaas) error{}
+	//success = c.createPersistentVolume(foo)
+	// defer func() {
+	// 	if !success {
+	// 		c.deletePersistentVolume(foo)
+	// 	}
+	// }()
 
-	// c.createPersistentVolume(foo)
 	if foo.Spec.PvcVolumeName == "" {
-		c.createPersistentVolumeClaim(foo)
+		err = c.createPersistentVolumeClaim(foo)
+		if err != nil {
+			c.logger.Error(err, "KeysaasController.go : Error creating PVC")
+			for i := len(deleteFuncs) - 1; i >= 0; i-- {
+				deleteFuncs[i](foo)
+			}
+			return "", "", "", err
+		}
+		deleteFuncs = append(deleteFuncs, c.deletePersistentVolumeClaim)
 	}
-	servicePort := c.createService(foo)
-
-	c.createIngress(foo)
-
-	err, keysaasPodName, secretName := c.createDeployment(foo)
-
+	servicePort, err := c.createService(foo)
 	if err != nil {
-		return serviceURIToReturn, keysaasPodName, secretName, err
+		c.logger.Error(err, "KeysaasController.go : Error creating Service")
+		for i := len(deleteFuncs) - 1; i >= 0; i-- {
+			deleteFuncs[i](foo)
+		}
+		return "", "", "", err
 	}
+	deleteFuncs = append(deleteFuncs, c.deleteService)
+
+	err = c.createIngress(foo)
+	if err != nil {
+		c.logger.Error(err, "KeysaasController.go : Error creating Ingress")
+		for i := len(deleteFuncs) - 1; i >= 0; i-- {
+			deleteFuncs[i](foo)
+		}
+		return "", "", "", err
+	}
+	deleteFuncs = append(deleteFuncs, c.deleteIngress)
+
+	secretName := ""
+	adminPassword := ""
+	secretName, adminPassword = c.getSecret(foo)
+	if adminPassword == "" {
+		adminPassword = c.generatePassword(KEYSAAS_PORT)
+		err = c.createSecret(foo, adminPassword)
+		if err != nil {
+			c.logger.Error(err, "KeysaasController.go : Error creating Secret")
+			for i := len(deleteFuncs) - 1; i >= 0; i-- {
+				deleteFuncs[i](foo)
+			}
+			return "", "", "", err
+		}
+		deleteFuncs = append(deleteFuncs, c.deleteSecret)
+	}
+
+	keysaasPodName, err = c.createDeployment(foo, adminPassword)
+	if err != nil {
+		c.logger.Error(err, "KeysaasController.go : Error creating Deployment")
+		for i := len(deleteFuncs) - 1; i >= 0; i-- {
+			deleteFuncs[i](foo)
+		}
+		return "", "", "", err
+	}
+	deleteFuncs = append(deleteFuncs, c.deleteDeployment)
 
 	// Wait couple of seconds more just to give the Pod some more time.
 	time.Sleep(time.Second * 2)
@@ -110,7 +161,7 @@ func getNamespace(foo *operatorv1.Keysaas) string {
 	return namespace
 }
 
-func (c *KeysaasController) createIngress(foo *operatorv1.Keysaas) {
+func (c *KeysaasController) createIngress(foo *operatorv1.Keysaas) error {
 
 	keysaasName := foo.Name
 
@@ -145,9 +196,16 @@ func (c *KeysaasController) createIngress(foo *operatorv1.Keysaas) {
 	if kerrors.IsAlreadyExists(err) {
 		c.logger.Info("KeysaasController.go : Ingress already exists", "ingress name", ingress.GetObjectMeta().GetName())
 	} else if err != nil {
-		panic(err)
+		c.logger.Error(err, "KeysaasController.go : ")
+		return err
 	}
 	c.logger.Info("KeysaasController.go : Created Ingress.", "ingress name", result.GetObjectMeta().GetName())
+	return nil
+}
+
+func (c *KeysaasController) deleteIngress(foo *operatorv1.Keysaas) error {
+	namespace := getNamespace(foo)
+	return c.kubeclientset.NetworkingV1().Ingresses(namespace).Delete(context.TODO(), foo.Name, *metav1.NewDeleteOptions(0))
 }
 
 func getIngress(foo *operatorv1.Keysaas, specObj networkingv1.IngressSpec, keysaasName, tls string) *networkingv1.Ingress {
@@ -234,7 +292,6 @@ func getIngressSpec(keysaasPort int, keysaasDomainName, keysaasPath, keysaasTLSC
 
 	var specObj networkingv1.IngressSpec
 	pathType := networkingv1.PathTypePrefix
-	fmt.Println("CUNNNNNNNNNNYYYYYYYYYYYYYYYY HAPROXYYYYYYYYYYYYy")
 	ingressClass := "haproxy"
 	if len(tls) > 0 {
 		specObj = networkingv1.IngressSpec{
@@ -303,7 +360,7 @@ func getIngressSpec(keysaasPort int, keysaasDomainName, keysaasPath, keysaasTLSC
 	return specObj
 }
 
-func (c *KeysaasController) createPersistentVolume(foo *operatorv1.Keysaas) {
+func (c *KeysaasController) createPersistentVolume(foo *operatorv1.Keysaas) error {
 	c.logger.Info("KeysaasController.go : Inside createPersistentVolume")
 
 	deploymentName := foo.Name
@@ -346,12 +403,14 @@ func (c *KeysaasController) createPersistentVolume(foo *operatorv1.Keysaas) {
 	if kerrors.IsAlreadyExists(err) {
 		c.logger.Info("KeysaasController.go : PersistentVolume already exists", "pv name", persistentVolume.GetObjectMeta().GetName())
 	} else if err != nil {
-		panic(err)
+		c.logger.Error(err, "KeysaasController.go : ")
+		return err
 	}
 	c.logger.Info("KeysaasController.go : Created persistentVolume", "pv name", result.GetObjectMeta().GetName())
+	return nil
 }
 
-func (c *KeysaasController) createPersistentVolumeClaim(foo *operatorv1.Keysaas) {
+func (c *KeysaasController) createPersistentVolumeClaim(foo *operatorv1.Keysaas) error {
 	c.logger.Info("KeysaasController.go : Inside createPersistentVolumeClaim")
 
 	storageClassName := "standard"
@@ -394,12 +453,22 @@ func (c *KeysaasController) createPersistentVolumeClaim(foo *operatorv1.Keysaas)
 	if kerrors.IsAlreadyExists(err) {
 		c.logger.Info("KeysaasController.go : persistentVolumeClaim already exists", "pv name", persistentVolumeClaim.GetObjectMeta().GetName())
 	} else if err != nil {
-		panic(err)
+		// c.logger.Error(err, "KeysaasController.go : ")
+		return err
 	}
 	c.logger.Info("KeysaasController.go : Created persistentVolumeClaim", "pvc name", result.GetObjectMeta().GetName())
+	return nil
 }
 
-func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas) (error, string, string) {
+func (c *KeysaasController) deletePersistentVolumeClaim(foo *operatorv1.Keysaas) error {
+	namespace := getNamespace(foo)
+	return c.kubeclientset.CoreV1().PersistentVolumeClaims(namespace).Delete(context.TODO(), foo.Name, *metav1.NewDeleteOptions(0))
+}
+
+func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas, adminPassword string) (string, error) {
+
+	err := errors.New("test errorrrrrrrrrrrrrrrrrrrrrrrrrr")
+	return "", err
 
 	c.logger.Info("KeysaasController.go : Inside createDeployment")
 
@@ -420,14 +489,6 @@ func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas) (error, st
 	claimName := foo.Spec.PvcVolumeName
 	if claimName == "" {
 		claimName = foo.Name
-	}
-
-	secretName := ""
-	adminPassword := ""
-	secretName, adminPassword = c.getSecret(foo)
-	if adminPassword == "" {
-		adminPassword = c.generatePassword(KEYSAAS_PORT)
-		secretName = c.createSecret(foo, adminPassword)
 	}
 
 	//MySQL Service IP and Port
@@ -462,8 +523,8 @@ func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas) (error, st
 	mysqlServiceResult, err := mysqlServiceClient.Get(context.TODO(), mysqlServiceName, metav1.GetOptions{})
 
 	if err != nil {
-		c.logger.Info("KeysaasController.go : Error getting MySQL Service details", "error", err)
-		return err, "", secretName
+		// c.logger.Error(err, "KeysaasController.go : Error getting MYSQL details")
+		return "", err
 	}
 
 	mysqlHostIP := mysqlServiceName
@@ -622,7 +683,8 @@ func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas) (error, st
 	if kerrors.IsAlreadyExists(err) {
 		c.logger.Info("KeysaasController.go : deployment already exists", "deployment name", deployment.GetObjectMeta().GetName())
 	} else if err != nil {
-		panic(err)
+		// c.logger.Error(err, "KeysaasController.go : ")
+		return "", err
 	}
 	c.logger.Info("KeysaasController.go : Created deployment", "deployment name", result.GetObjectMeta().GetName())
 
@@ -634,11 +696,16 @@ func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas) (error, st
 	keysaasPodName, podReady := c.waitForPod(foo)
 
 	if podReady {
-		return nil, keysaasPodName, secretName
+		return keysaasPodName, nil
 	} else {
-		err1 := errors.New("Keysaas Pod Timeout")
-		return err1, keysaasPodName, secretName
+		err := errors.New("keysaas pod timeout")
+		return keysaasPodName, err
 	}
+}
+
+func (c *KeysaasController) deleteDeployment(foo *operatorv1.Keysaas) error {
+	namespace := getNamespace(foo)
+	return c.kubeclientset.AppsV1().Deployments(namespace).Delete(context.TODO(), foo.Name, *metav1.NewDeleteOptions(0))
 }
 
 func (c *KeysaasController) getSecret(foo *operatorv1.Keysaas) (string, string) {
@@ -669,7 +736,7 @@ func (c *KeysaasController) getSecret(foo *operatorv1.Keysaas) (string, string) 
 	}
 }
 
-func (c *KeysaasController) createSecret(foo *operatorv1.Keysaas, adminPassword string) string {
+func (c *KeysaasController) createSecret(foo *operatorv1.Keysaas, adminPassword string) error {
 
 	c.logger.Info("KeysaasController.go : Inside createSecret")
 	secretName := foo.Name
@@ -705,13 +772,19 @@ func (c *KeysaasController) createSecret(foo *operatorv1.Keysaas, adminPassword 
 	if kerrors.IsAlreadyExists(err) {
 		c.logger.Info("KeysaasController.go : secret already exists", "secret name", secret.GetObjectMeta().GetName())
 	} else if err != nil {
-		panic(err)
+		// c.logger.Error(err, "KeysaasController.go : ")
+		return err
 	}
 	c.logger.Info("KeysaasController.go : Created Secret", "secret name", result.GetObjectMeta().GetName())
-	return secretName
+	return nil
 }
 
-func (c *KeysaasController) createService(foo *operatorv1.Keysaas) string {
+func (c *KeysaasController) deleteSecret(foo *operatorv1.Keysaas) error {
+	namespace := getNamespace(foo)
+	return c.kubeclientset.CoreV1().Secrets(namespace).Delete(context.TODO(), foo.Name, *metav1.NewDeleteOptions(0))
+}
+
+func (c *KeysaasController) createService(foo *operatorv1.Keysaas) (string, error) {
 
 	c.logger.Info("KeysaasController.go : Inside createService")
 	deploymentName := foo.Name
@@ -762,7 +835,8 @@ func (c *KeysaasController) createService(foo *operatorv1.Keysaas) string {
 	if kerrors.IsAlreadyExists(err) {
 		c.logger.Info("KeysaasController.go : service already exists", "service name", service.GetObjectMeta().GetName())
 	} else if err != nil {
-		panic(err)
+		// c.logger.Error(err, "KeysaasController.go : ")
+		return "", err
 	}
 	c.logger.Info("KeysaasController.go : Created service", "service name", result1.GetObjectMeta().GetName())
 
@@ -781,7 +855,12 @@ func (c *KeysaasController) createService(foo *operatorv1.Keysaas) string {
 
 	c.logger.Info("KeysaasController.go : Service URI", "service uri", serviceURI)
 
-	return servicePort
+	return servicePort, nil
+}
+
+func (c *KeysaasController) deleteService(foo *operatorv1.Keysaas) error {
+	namespace := getNamespace(foo)
+	return c.kubeclientset.CoreV1().Services(namespace).Delete(context.TODO(), foo.Name, *metav1.NewDeleteOptions(0))
 }
 
 func getDomainName(foo *operatorv1.Keysaas) string {

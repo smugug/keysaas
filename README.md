@@ -20,3 +20,10 @@ helm install haproxy-kubernetes-ingress haproxytech/kubernetes-ingress \
 
 # Deploy keysaas
 kubectl apply -f artifacts/keysaastest.yaml
+
+# TODO
+- keycloak
+- rollback (clean created resources)
+- rbac
+- web gui
+- monitor
