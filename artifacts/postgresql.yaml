@@ -1,0 +1,117 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: keysaas-postgresql
+  namespace: customer2
+  labels:
+    app: keysaas-postgresql
+spec:
+  ports:
+    - port: 5432
+  selector:
+    app: keysaas-postgresql
+  type: ClusterIP
+---
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: keysaas-postgresql
+#   namespace: customer2
+#   labels:
+#     app: keysaas-postgresql
+# spec:
+#   type: NodePort
+#   ports:
+#     - port: 5432          # Port for PostgreSQL
+#       targetPort: 5432     # Port that the app container listens on
+#       nodePort: 30500         # Optional: specify the node port (or let Kubernetes choose by omitting this line)
+#   selector:
+#     app: keysaas-postgresql
+# ---
+# kind: PersistentVolume
+# apiVersion: v1
+# metadata:
+#   name: keysaas-postgresql-data
+#   labels:
+#     type: local
+# spec:
+#   storageClassName: manual
+#   capacity:
+#     storage: 1Gi
+#   accessModes:
+#     - ReadWriteOnce
+#   hostPath:
+#     path: "/mnt/postgresql-data" ????
+# ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: keysaas-postgresql-data
+  namespace: customer2
+  labels:
+    app: keysaas-postgresql
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keysaas-postgresql-secret
+  namespace: customer2
+  labels:
+    app: keysaas-postgresql
+data:
+  POSTGRES_DB: keysaas
+  POSTGRES_USER: user1
+  POSTGRES_PASSWORD: password1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keysaas-postgresql
+  namespace: customer2
+  labels:
+    app: keysaas-postgresql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keysaas-postgresql
+  template:
+    metadata:
+      labels:
+        app: keysaas-postgresql
+    spec:
+      containers:
+      - name: postgresql
+        image: postgres:17.0-bullseye
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5432
+        envFrom:
+        - configMapRef:
+            name: keysaas-postgresql-secret
+        # readinessProbe:
+        #   exec:
+        #     command: ["/bin/sh", "-i", "-c", "MYSQL_PWD=\"$MYSQL_PASSWORD\" mysql -h 127.0.0.1 -u $MYSQL_USER -D $MYSQL_DATABASE -e 'SELECT 1'"]
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: postgresql-persistent-storage
+      volumes:
+      - name: postgresql-persistent-storage
+        persistentVolumeClaim:
+          claimName: keysaas-postgresql-data
+---
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: postgresql-secret
+#   namespace: customer2
+# type: Opaque
+# data:
+#   postgresql-password: password1
+# ---

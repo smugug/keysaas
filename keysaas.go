@@ -21,8 +21,6 @@ import (
 	apiutil "k8s.io/apimachinery/pkg/util/intstr"
 )
 
-const TEST_PORT = 8000
-
 func (c *KeysaasController) deployKeysaas(ctx context.Context, foo *operatorv1.Keysaas) (string, string, string, error) {
 	c.logger.Info("KeysaasController.go : Inside deployKeysaas")
 	var keysaasPodName, serviceURIToReturn string
@@ -70,7 +68,7 @@ func (c *KeysaasController) deployKeysaas(ctx context.Context, foo *operatorv1.K
 	adminPassword := ""
 	secretName, adminPassword = c.getSecret(foo)
 	if adminPassword == "" {
-		adminPassword = c.generatePassword(KEYSAAS_PORT)
+		adminPassword = c.generatePassword()
 		err = c.createSecret(foo, adminPassword)
 		if err != nil {
 			c.logger.Error(err, "KeysaasController.go : Error creating Secret")
@@ -90,7 +88,7 @@ func (c *KeysaasController) deployKeysaas(ctx context.Context, foo *operatorv1.K
 		}
 		return "", "", "", err
 	}
-	deleteFuncs = append(deleteFuncs, c.deleteDeployment)
+	// deleteFuncs = append(deleteFuncs, c.deleteDeployment)
 
 	// Wait couple of seconds more just to give the Pod some more time.
 	time.Sleep(time.Second * 2)
@@ -117,9 +115,7 @@ func (c *KeysaasController) deployKeysaas(ctx context.Context, foo *operatorv1.K
 	return serviceURIToReturn, keysaasPodName, secretName, err
 }
 
-func (c *KeysaasController) generatePassword(keysaasPort int) string {
-	seed := keysaasPort
-	rand.Seed(int64(seed))
+func (c *KeysaasController) generatePassword() string {
 	mina := 97
 	maxa := 122
 	minA := 65
@@ -173,18 +169,19 @@ func (c *KeysaasController) createIngress(foo *operatorv1.Keysaas) error {
 		keysaasTLSCertSecretName = keysaasName + "-domain-cert"
 	}
 
-	keysaasPath := "/"
+	keysaasPath := constants.KEYCLOAK_PATH
 
 	keysaasDomainName := getDomainName(foo)
 	if keysaasDomainName == "" {
-		keysaasPath = keysaasPath + keysaasName
+		// keysaasPath = keysaasPath + keysaasName ????
+		// if no domain then use sub-domain
+		keysaasDomainName = keysaasName + "." + constants.BASE_URL
 	}
 
 	keysaasServiceName := keysaasName
-	keysaasPort := KEYSAAS_PORT
+	keysaasPort := constants.KEYCLOAK_DEFAULT_HTTP_PORT
 
-	specObj := getIngressSpec(keysaasPort, keysaasDomainName, keysaasPath,
-		keysaasTLSCertSecretName, keysaasServiceName, tls)
+	specObj := getIngressSpec(keysaasPort, keysaasDomainName, keysaasPath, keysaasTLSCertSecretName, keysaasServiceName, tls)
 
 	ingress := getIngress(foo, specObj, keysaasName, tls)
 
@@ -217,10 +214,13 @@ func getIngress(foo *operatorv1.Keysaas, specObj networkingv1.IngressSpec, keysa
 			ObjectMeta: metav1.ObjectMeta{
 				Name: keysaasName,
 				Annotations: map[string]string{
-					"spec.ingressClassName": "haproxy",
+					/// THIS MOTHERFUCKER ANNOTATION COSTS ME A NIGHT
+					/// passthrough so that haproxy won't validate stuff beforehand since we already have tls on keycloak
+					"haproxy.org/ssl-passthrough": "true",
+					// "spec.ingressClassName": "haproxy",
 					// "nginx.ingress.kubernetes.io/rewrite-target": "/",
-					"certmanager.k8s.io/issuer":              keysaasName,
-					"certmanager.k8s.io/acme-challenge-type": "http01",
+					// "certmanager.k8s.io/issuer":              keysaasName,
+					// "certmanager.k8s.io/acme-challenge-type": "http01",
 				},
 				OwnerReferences: []metav1.OwnerReference{
 					{
@@ -229,6 +229,9 @@ func getIngress(foo *operatorv1.Keysaas, specObj networkingv1.IngressSpec, keysa
 						Name:       foo.Name,
 						UID:        foo.UID,
 					},
+				},
+				Labels: map[string]string{
+					"app": keysaasName,
 				},
 			},
 			Spec: specObj,
@@ -236,12 +239,11 @@ func getIngress(foo *operatorv1.Keysaas, specObj networkingv1.IngressSpec, keysa
 	} else {
 		ingress = &networkingv1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: keysaasName,
+				Name:        keysaasName,
 				Annotations: map[string]string{
-					// "spec.ingressClassName":                      "nginx",
+					// "spec.ingressClassName": "haproxy",
 					// "nginx.ingress.kubernetes.io/ssl-redirect":   "false",
 					// "nginx.ingress.kubernetes.io/rewrite-target": "/",
-					"spec.ingressClassName": "haproxy",
 					// "nginx.ingress.kubernetes.io/rewrite-target": "/",
 				},
 				OwnerReferences: []metav1.OwnerReference{
@@ -252,36 +254,11 @@ func getIngress(foo *operatorv1.Keysaas, specObj networkingv1.IngressSpec, keysa
 						UID:        foo.UID,
 					},
 				},
+				Labels: map[string]string{
+					"app": keysaasName,
+				},
 			},
 			Spec: specObj,
-			/*
-					Spec: extensionsv1beta1.IngressSpec{
-						TLS: []extensionsv1beta1.IngressTLS{
-							{
-								Hosts: []string{keysaasDomainName},
-								SecretName: keysaasTLSCertSecretName,
-							},
-						},
-						Rules: []extensionsv1beta1.IngressRule{
-							{
-								Host: keysaasDomainName,
-								IngressRuleValue: extensionsv1beta1.IngressRuleValue{
-									HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
-										Paths: []extensionsv1beta1.HTTPIngressPath{
-											{
-												Path: keysaasPath,
-												Backend: extensionsv1beta1.IngressBackend{
-												ServiceName: keysaasServiceName,
-												ServicePort: apiutil.FromInt(keysaasPort),
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			*/
 		}
 	}
 	return ingress
@@ -299,7 +276,7 @@ func getIngressSpec(keysaasPort int, keysaasDomainName, keysaasPath, keysaasTLSC
 			TLS: []networkingv1.IngressTLS{
 				{
 					Hosts:      []string{keysaasDomainName},
-					SecretName: keysaasTLSCertSecretName,
+					SecretName: "kubernetes-tls", // this is testing certificate for wildcards *.kubernetes.local, correct: keysaasTLSCertSecretName,
 				},
 			},
 			Rules: []networkingv1.IngressRule{
@@ -314,7 +291,7 @@ func getIngressSpec(keysaasPort int, keysaasDomainName, keysaasPath, keysaasTLSC
 										Service: &networkingv1.IngressServiceBackend{
 											Name: keysaasServiceName,
 											Port: networkingv1.ServiceBackendPort{
-												Number: 80, //port of service
+												Number: int32(constants.KEYCLOAK_DEFAULT_HTTPS_PORT), //port of service
 											},
 										},
 										//apiutil.FromInt(keysaasPort),
@@ -342,7 +319,7 @@ func getIngressSpec(keysaasPort int, keysaasDomainName, keysaasPath, keysaasTLSC
 										Service: &networkingv1.IngressServiceBackend{
 											Name: keysaasServiceName,
 											Port: networkingv1.ServiceBackendPort{
-												Number: 80,
+												Number: int32(constants.KEYCLOAK_DEFAULT_HTTP_PORT),
 											},
 										},
 										//apiutil.FromInt(keysaasPort),
@@ -377,7 +354,7 @@ func (c *KeysaasController) createPersistentVolume(foo *operatorv1.Keysaas) erro
 			},
 		},
 		Spec: apiv1.PersistentVolumeSpec{
-			StorageClassName: "manual",
+			StorageClassName: "standard",
 			Capacity: apiv1.ResourceList{
 				//					map[string]resource.Quantity{
 				"storage": resource.MustParse("1Gi"),
@@ -413,9 +390,15 @@ func (c *KeysaasController) createPersistentVolume(foo *operatorv1.Keysaas) erro
 func (c *KeysaasController) createPersistentVolumeClaim(foo *operatorv1.Keysaas) error {
 	c.logger.Info("KeysaasController.go : Inside createPersistentVolumeClaim")
 
-	storageClassName := "standard"
+	/// STANDARD HAS DYNAMIC PROVISION (AUTO CREATING PV), MANUAL DOESN'T
+	standardStorageClassName := "standard"
+	// manualStorageClassName := "manual"
 	deploymentName := foo.Name
-	persistentVolumeClaim := &apiv1.PersistentVolumeClaim{
+	/// WARNING
+	/// WE NEED 2 PERSISTENT VOLUME CLAIM
+	/// 1 IS FOR CUSTOM THEMES
+	/// 1 IS FOR WILDCARD CERTIFICATE, OR CUSTOM CERTIFICATE
+	pvcTheme := &apiv1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: deploymentName,
 			OwnerReferences: []metav1.OwnerReference{
@@ -433,10 +416,10 @@ func (c *KeysaasController) createPersistentVolumeClaim(foo *operatorv1.Keysaas)
 				"ReadWriteOnce",
 				//					},
 			},
-			StorageClassName: &storageClassName,
+			StorageClassName: &standardStorageClassName,
 			Resources: apiv1.VolumeResourceRequirements{
 				Requests: apiv1.ResourceList{
-					apiv1.ResourceStorage: resource.MustParse("1Gi"),
+					apiv1.ResourceStorage: resource.MustParse("50Mi"),
 					//							map[string]resource.Quantity{
 					//							"storage": resource.MustParse("1Gi"),
 					//						},
@@ -445,18 +428,58 @@ func (c *KeysaasController) createPersistentVolumeClaim(foo *operatorv1.Keysaas)
 		},
 	}
 
+	// pvcCertificateName := deploymentName + "-certificate"
+	// pvcCertificate := &apiv1.PersistentVolumeClaim{
+	// 	ObjectMeta: metav1.ObjectMeta{
+	// 		Name: pvcCertificateName,
+	// 		OwnerReferences: []metav1.OwnerReference{
+	// 			{
+	// 				APIVersion: constants.API_VERSION,
+	// 				Kind:       constants.KEYSAAS_KIND,
+	// 				Name:       foo.Name,
+	// 				UID:        foo.UID,
+	// 			},
+	// 		},
+	// 	},
+	// 	Spec: apiv1.PersistentVolumeClaimSpec{
+	// 		AccessModes: []apiv1.PersistentVolumeAccessMode{
+	// 			"ReadOnlyMany",
+	// 		},
+	// 		StorageClassName: &manualStorageClassName,
+	// 		Resources: apiv1.VolumeResourceRequirements{
+	// 			Requests: apiv1.ResourceList{
+	// 				apiv1.ResourceStorage: resource.MustParse("10Mi"),
+	// 			},
+	// 		},
+	// 		Selector: &metav1.LabelSelector{
+	// 			MatchLabels: map[string]string{
+	// 				"type": "cert-data",
+	// 			},
+	// 		},
+	// 	},
+	// }
+
 	namespace := getNamespace(foo)
 	persistentVolumeClaimClient := c.kubeclientset.CoreV1().PersistentVolumeClaims(namespace)
 
-	c.logger.Info("KeysaasController.go : Creating persistentVolumeClaim...")
-	result, err := persistentVolumeClaimClient.Create(context.TODO(), persistentVolumeClaim, metav1.CreateOptions{})
+	c.logger.Info("KeysaasController.go : Creating persistentVolumeClaim for Themes...")
+	_, err := persistentVolumeClaimClient.Create(context.TODO(), pvcTheme, metav1.CreateOptions{})
 	if kerrors.IsAlreadyExists(err) {
-		c.logger.Info("KeysaasController.go : persistentVolumeClaim already exists", "pv name", persistentVolumeClaim.GetObjectMeta().GetName())
+		c.logger.Info("KeysaasController.go : persistentVolumeClaim for theme already exists", "pv name", pvcTheme.GetObjectMeta().GetName())
 	} else if err != nil {
 		// c.logger.Error(err, "KeysaasController.go : ")
 		return err
 	}
-	c.logger.Info("KeysaasController.go : Created persistentVolumeClaim", "pvc name", result.GetObjectMeta().GetName())
+
+	// c.logger.Info("KeysaasController.go : Creating persistentVolumeClaim for Certificates...")
+	// _, err = persistentVolumeClaimClient.Create(context.TODO(), pvcCertificate, metav1.CreateOptions{})
+	// if kerrors.IsAlreadyExists(err) {
+	// 	c.logger.Info("KeysaasController.go : persistentVolumeClaim for certificate already exists", "pv name", pvcCertificate.GetObjectMeta().GetName())
+	// } else if err != nil {
+	// 	// c.logger.Error(err, "KeysaasController.go : ")
+	// 	return err
+	// }
+	c.logger.Info("KeysaasController.go : Created persistentVolumeClaims")
 	return nil
 }
 
@@ -466,10 +489,6 @@ func (c *KeysaasController) deletePersistentVolumeClaim(foo *operatorv1.Keysaas)
 }
 
 func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas, adminPassword string) (string, error) {
-
-	err := errors.New("test errorrrrrrrrrrrrrrrrrrrrrrrrrr")
-	return "", err
-
 	c.logger.Info("KeysaasController.go : Inside createDeployment")
 
 	namespace := getNamespace(foo)
@@ -477,14 +496,11 @@ func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas, adminPassw
 
 	deploymentName := foo.Name
 
-	keysaasPort := KEYSAAS_PORT
+	// keysaasPort := KEYSAAS_PORT
 
-	image := "crccheck/hello-world:latest"
 	//image := "lmecld/nginxforkeysaas:9.0"
 	//image := "lmecld/nginxforkeysaas6:latest"
 	//	image = "lmecld/nginxforkeysaas10:latest"
-
-	volumeName := "keysaas-data"
 
 	claimName := foo.Spec.PvcVolumeName
 	if claimName == "" {
@@ -492,56 +508,63 @@ func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas, adminPassw
 	}
 
 	//MySQL Service IP and Port
-	mysqlServiceName := "keysaas2-mysql" //foo.Spec.MySQLServiceName
-	c.logger.Info("KeysaasController.go : MySQL Service name", "service name", mysqlServiceName)
-
-	mysqlUserName := "user1" //foo.Spec.MySQLUserName
-	c.logger.Info("KeysaasController.go : MySQL Username", "mysql username", mysqlUserName)
-
-	// passwordLocation := "mysql-secret.mysql-password" //foo.Spec.MySQLUserPassword
-	// secretPasswordSplitted := strings.Split(passwordLocation, ".")
-	// mysqlSecretName := secretPasswordSplitted[0]
-	// mysqlPasswordField := secretPasswordSplitted[1]
-
-	// secretsClient := c.kubeclientset.CoreV1().Secrets(namespace)
-	// secret, err := secretsClient.Get(context.TODO(), mysqlSecretName, metav1.GetOptions{})
-
-	// if err != nil {
-	// 	c.logger.Info("KeysaasController.go : Error, secret not found from in namespace", "secret", mysqlSecretName, "namespace", namespace, "error", err)
-	// }
-	// if _, ok := secret.Data[mysqlPasswordField]; !ok {
-	// 	c.logger.Info("KeysaasController.go : Error, secret does not have the field", "secret", mysqlSecretName, "password field", mysqlPasswordField)
-	// }
-	mysqlUserPassword := "password1" //string(secret.Data[mysqlPasswordField])
-
-	c.logger.Info("KeysaasController.go : MySQL Password", "mysql password", mysqlUserPassword)
-
-	keysaasAdminEmail := foo.Spec.KeysaasAdminEmail
-	c.logger.Info("KeysaasController.go : Keysaas Admin Email", "mysql email", keysaasAdminEmail)
-
-	mysqlServiceClient := c.kubeclientset.CoreV1().Services(namespace)
-	mysqlServiceResult, err := mysqlServiceClient.Get(context.TODO(), mysqlServiceName, metav1.GetOptions{})
-
+	postgresqlServiceName := "keysaas-postgresql" //foo.Spec.MySQLServiceName
+	c.logger.Info("KeysaasController.go : Postgreql Service name", "service name", postgresqlServiceName)
+	postgresConfigMapName := "keysaas-postgresql-secret"
+	postgresConfigMap, err := c.kubeclientset.CoreV1().ConfigMaps(namespace).Get(context.TODO(), postgresConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		// c.logger.Error(err, "KeysaasController.go : Error getting MYSQL details")
 		return "", err
 	}
+	postgresqlUserName, exists := postgresConfigMap.Data["POSTGRES_USER"]
+	if !exists {
+		// Handle the case where the key does not exist
+		return "", errors.New("postgres_user doesn't exist in configmap")
+	}
+	postgresqlUserPassword, exists := postgresConfigMap.Data["POSTGRES_PASSWORD"]
+	if !exists {
+		// Handle the case where the key does not exist
+		return "", errors.New("postgres_password doesn't exist in configmap")
+	}
 
-	mysqlHostIP := mysqlServiceName
-	mysqlServicePortInt := mysqlServiceResult.Spec.Ports[0].Port
-	c.logger.Info("KeysaasController.go : MySQL Service Port int", "port in", mysqlServicePortInt)
-	mysqlServicePort := fmt.Sprint(mysqlServicePortInt)
-	c.logger.Info("KeysaasController.go : MySQL Service Port", "service port", mysqlServicePort)
-	c.logger.Info("KeysaasController.go : MySQL Host IP", "host ip", mysqlHostIP)
+	c.logger.Info("KeysaasController.go : postgresql Password", "postgresql password", postgresqlUserPassword)
+
+	keysaasAdminEmail := foo.Spec.KeysaasAdminEmail
+	c.logger.Info("KeysaasController.go : Keysaas Admin Email", "keysaas email", keysaasAdminEmail)
+
+	postgresqlServiceClient := c.kubeclientset.CoreV1().Services(namespace)
+	postgresqlServiceResult, err := postgresqlServiceClient.Get(context.TODO(), postgresqlServiceName, metav1.GetOptions{})
+	if err != nil {
+		// c.logger.Error(err, "KeysaasController.go : Error getting MYSQL details")
+		return "", err
+	}
+	postgresDatabaseName := constants.POSTGRES_DATABASE_NAME
+	postgresqlHostIP := postgresqlServiceName
+	postgresqlHostNumericIP := postgresqlServiceResult.Spec.ClusterIP
+	postgresqlServicePortInt := postgresqlServiceResult.Spec.Ports[0].Port
+	c.logger.Info("KeysaasController.go : postgresql Service Port int", "port in", postgresqlServicePortInt)
+	postgresqlServicePort := fmt.Sprint(postgresqlServicePortInt)
+	c.logger.Info("KeysaasController.go : postgresql Service Port", "service port", postgresqlServicePort)
+	c.logger.Info("KeysaasController.go : postgresql Host IP", "host ip", postgresqlHostIP)
+
+	err = c.createDatabaseSchema(namespace, postgresqlServiceName, postgresqlHostNumericIP, postgresqlServicePort, postgresDatabaseName, postgresqlUserName, postgresqlUserPassword, deploymentName)
+	if err != nil {
+		// c.logger.Error(err, "KeysaasController.go : Error creating database schema")
+		return "", err
+	}
 
 	HOST_NAME := ""
 	if foo.Spec.DomainName == "" {
-		HOST_NAME = deploymentName + ":" + strconv.Itoa(KEYSAAS_PORT)
+		HOST_NAME = deploymentName + "." + constants.BASE_URL
 	} else {
 		HOST_NAME = foo.Spec.DomainName
 	}
 
-	c.logger.Info("KeysaasController.go : HOST_NAME", "HOST_NAME", HOST_NAME)
+	c.logger.Info("KeysaasController.go : HOST and PORT", "HOST_NAME", HOST_NAME, "PORT")
+
+	/// WARNING
+	/// KEYCLOAK PRODUCTION (start) REQUIRES HTTPS/TLS AND HOST NAME!!!
+	/// KEYCLOAK TESTING (start-dev)
 
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -553,6 +576,9 @@ func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas, adminPassw
 					Name:       foo.Name,
 					UID:        foo.UID,
 				},
+			},
+			Labels: map[string]string{
+				"app": deploymentName,
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -569,10 +595,24 @@ func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas, adminPassw
 					},
 				},
 				Spec: apiv1.PodSpec{
+					//COPY DEFAULT THEMES
+					// InitContainers: []apiv1.Container{
+					// 	{
+					// 		Name:    "init-themes",
+					// 		Image:   constants.KEYCLOAK_IMAGE,
+					// 		Command: []string{"/bin/sh", "-c", fmt.Sprintf("cp -r %s/* /mnt/themes/", constants.KEYCLOAK_THEME_LOCATION)},
+					// 		VolumeMounts: []apiv1.VolumeMount{
+					// 			{
+					// 				Name:      volumeName,
+					// 				MountPath: "/mnt/themes",
+					// 			},
+					// 		},
+					// 	},
+					// },
 					Containers: []apiv1.Container{
 						{
 							Name:  constants.CONTAINER_NAME,
-							Image: image,
+							Image: constants.KEYCLOAK_IMAGE,
 							// Lifecycle: &apiv1.Lifecycle{
 							// 	PostStart: &apiv1.LifecycleHandler{
 							// 		Exec: &apiv1.ExecAction{
@@ -582,11 +622,6 @@ func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas, adminPassw
 							// 		},
 							// 	},
 							// },
-							Ports: []apiv1.ContainerPort{
-								{
-									ContainerPort: int32(TEST_PORT),
-								},
-							},
 							/*
 								ReadinessProbe: &apiv1.Probe{
 									Handler: apiv1.Handler{
@@ -600,24 +635,28 @@ func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas, adminPassw
 								},*/
 							Env: []apiv1.EnvVar{
 								{
-									Name:  "APPLICATION_NAME",
-									Value: deploymentName,
+									Name:  "KEYCLOAK_PRODUCTION",
+									Value: "true",
 								},
 								{
-									Name:  "MYSQL_DATABASE",
-									Value: "keysaas",
+									Name:  "KEYCLOAK_DATABASE_VENDOR",
+									Value: "postgresql",
 								},
 								{
-									Name:  "MYSQL_USER",
-									Value: mysqlUserName,
+									Name:  "KEYCLOAK_DATABASE_NAME",
+									Value: postgresDatabaseName,
 								},
 								{
-									Name:  "MYSQL_PASSWORD",
-									Value: mysqlUserPassword,
+									Name:  "KEYCLOAK_DATABASE_USER",
+									Value: postgresqlUserName,
 								},
 								{
-									Name:  "MYSQL_HOST",
-									Value: mysqlHostIP,
+									Name:  "KEYCLOAK_DATABASE_PASSWORD",
+									Value: postgresqlUserPassword,
+								},
+								{
+									Name:  "KEYCLOAK_DATABASE_HOST",
+									Value: postgresqlHostIP,
 									/*ValueFrom: &apiv1.EnvVarSource{
 									  FieldRef: &apiv1.ObjectFieldSelector{
 									      FieldPath: "status.hostIP",
@@ -625,27 +664,23 @@ func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas, adminPassw
 									},*/
 								},
 								{
-									Name:  "MYSQL_PORT",
-									Value: mysqlServicePort,
+									Name:  "KEYCLOAK_DATABASE_PORT",
+									Value: postgresqlServicePort,
 								},
 								{
-									Name:  "MYSQL_TABLE_PREFIX",
-									Value: "mdl_",
+									Name:  "KEYCLOAK_ADMIN",
+									Value: "user",
 								},
 								{
-									Name:  "KEYSAAS_ADMIN_PASSWORD",
-									Value: adminPassword,
+									Name:  "KEYCLOAK_ADMIN_PASSWORD",
+									Value: "password", //adminPassword,
 								},
 								{
-									Name:  "KEYSAAS_ADMIN_EMAIL",
-									Value: keysaasAdminEmail,
+									Name:  "KEYCLOAK_DATABASE_SCHEMA",
+									Value: deploymentName,
 								},
 								{
-									Name:  "KEYSAAS_PORT",
-									Value: strconv.Itoa(keysaasPort),
-								},
-								{
-									Name:  "HOST_NAME",
+									Name:  "KEYCLOAK_HOSTNAME",
 									Value: HOST_NAME,
 									/*ValueFrom: &apiv1.EnvVarSource{
 									  FieldRef: &apiv1.ObjectFieldSelector{
@@ -653,23 +688,72 @@ func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas, adminPassw
 									  },
 									},*/
 								},
+								{
+									Name:  "KEYCLOAK_ENABLE_HTTPS",
+									Value: "true",
+								},
+								{
+									Name:  "KEYCLOAK_HTTPS_PORT",
+									Value: strconv.Itoa(constants.KEYCLOAK_DEFAULT_HTTPS_PORT),
+								},
+								{
+									Name:  "KEYCLOAK_HTTPS_USE_PEM",
+									Value: "true",
+								},
+								{
+									Name:  "KEYCLOAK_HTTPS_CERTIFICATE_FILE",
+									Value: constants.KEYCLOAK_CERT_LOCATION + "/tls.crt",
+								},
+								{
+									Name:  "KEYCLOAK_HTTPS_CERTIFICATE_KEY_FILE",
+									Value: constants.KEYCLOAK_CERT_LOCATION + "/tls.key",
+								},
+							},
+							Ports: []apiv1.ContainerPort{
+								// {
+								// 	ContainerPort: int32(constants.KEYCLOAK_DEFAULT_HTTP_PORT),
+								// },
+								{
+									ContainerPort: int32(constants.KEYCLOAK_DEFAULT_HTTPS_PORT),
+								},
+								{
+									ContainerPort: int32(constants.KEYCLOAK_DEFAULT_JGROUP_PORT),
+								},
 							},
 							VolumeMounts: []apiv1.VolumeMount{
 								{
-									Name:      volumeName,
-									MountPath: "/opt/keysaasdata",
+									Name:      "theme-volume",
+									MountPath: constants.KEYCLOAK_THEME_LOCATION,
+								},
+								{
+									Name:      "cert-volume",
+									MountPath: constants.KEYCLOAK_CERT_LOCATION,
+									ReadOnly:  true,
 								},
 							},
 						},
 					},
 					Volumes: []apiv1.Volume{
 						{
-							Name: volumeName,
+							Name: "theme-volume",
 							VolumeSource: apiv1.VolumeSource{
 								PersistentVolumeClaim: &apiv1.PersistentVolumeClaimVolumeSource{
 									ClaimName: claimName,
 								},
 							},
+						},
+						{
+							Name: "cert-volume",
+							VolumeSource: apiv1.VolumeSource{
+								Secret: &apiv1.SecretVolumeSource{
+									SecretName: "kubernetes-tls",
+								},
+							},
+							// VolumeSource: apiv1.VolumeSource{
+							// 	PersistentVolumeClaim: &apiv1.PersistentVolumeClaimVolumeSource{
+							// 		ClaimName: claimName + "-certificate",
+							// 	},
+							// },
 						},
 					},
 				},
@@ -788,12 +872,10 @@ func (c *KeysaasController) createService(foo *operatorv1.Keysaas) (string, erro
 
 	c.logger.Info("KeysaasController.go : Inside createService")
 	deploymentName := foo.Name
-	keysaasPort := KEYSAAS_PORT
-
 	namespace := getNamespace(foo)
 	serviceClient := c.kubeclientset.CoreV1().Services(namespace)
 
-	serviceObj, servicePort := getServiceSpec(keysaasPort, deploymentName, foo.Spec.DomainName)
+	serviceObj, servicePort := getServiceSpec(deploymentName, foo.Spec.DomainName)
 	service := &apiv1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: deploymentName,
@@ -801,7 +883,7 @@ func (c *KeysaasController) createService(foo *operatorv1.Keysaas) (string, erro
 				{
 					APIVersion: constants.API_VERSION,
 					Kind:       constants.KEYSAAS_KIND,
-					Name:       foo.Name,
+					Name:       deploymentName,
 					UID:        foo.UID,
 				},
 			},
@@ -876,7 +958,7 @@ func getDomainName(foo *operatorv1.Keysaas) string {
 	*/
 }
 
-func getServiceSpec(keysaasPort int, deploymentName, domainName string) (apiv1.ServiceSpec, string) {
+func getServiceSpec(deploymentName, domainName string) (apiv1.ServiceSpec, string) {
 
 	var serviceObj apiv1.ServiceSpec
 
@@ -886,30 +968,25 @@ func getServiceSpec(keysaasPort int, deploymentName, domainName string) (apiv1.S
 		serviceObj = apiv1.ServiceSpec{
 			Ports: []apiv1.ServicePort{
 				{
-					Name:       "my-port",
-					Port:       80,                         //internally exposed port
-					TargetPort: apiutil.FromInt(TEST_PORT), //port on pod
-					NodePort:   int32(keysaasPort),         //externally exposed port
-					Protocol:   apiv1.ProtocolTCP,
+					Name:       "http",
+					Port:       constants.KEYCLOAK_DEFAULT_HTTP_PORT,                  //internally exposed port
+					TargetPort: apiutil.FromInt(constants.KEYCLOAK_DEFAULT_HTTP_PORT), //port on pod
+					// NodePort:   int32(keysaasPort),                                    //externally exposed port
+					Protocol: apiv1.ProtocolTCP,
 				},
-			},
-			Selector: map[string]string{
-				"app": deploymentName,
-			},
-			Type: apiv1.ServiceTypeNodePort,
-			//Type: apiv1.ServiceTypeClusterIP,
-			//Type: apiv1.ServiceTypeLoadBalancer,
-		}
-		servicePort = strconv.Itoa(keysaasPort)
-	} else {
-		serviceObj = apiv1.ServiceSpec{
-			Ports: []apiv1.ServicePort{
 				{
-					Name: "my-port",
-					//Port:       int32(keysaasPort),
-					Port:       80,
-					TargetPort: apiutil.FromInt(TEST_PORT),
-					Protocol:   apiv1.ProtocolTCP,
+					Name:       "https",
+					Port:       constants.KEYCLOAK_DEFAULT_HTTPS_PORT,                  //internally exposed port
+					TargetPort: apiutil.FromInt(constants.KEYCLOAK_DEFAULT_HTTPS_PORT), //port on pod
+					// NodePort:   int32(keysaasPort),                                     //externally exposed port
+					Protocol: apiv1.ProtocolTCP,
+				},
+				{
+					Name:       "jgroup",
+					Port:       constants.KEYCLOAK_DEFAULT_JGROUP_PORT,                  //internally exposed port
+					TargetPort: apiutil.FromInt(constants.KEYCLOAK_DEFAULT_JGROUP_PORT), //port on pod
+					// NodePort:   int32(keysaasPort),                                      //externally exposed port
+					// Protocol: apiv1.ProtocolTCP,
 				},
 			},
 			Selector: map[string]string{
@@ -919,7 +996,37 @@ func getServiceSpec(keysaasPort int, deploymentName, domainName string) (apiv1.S
 			Type: apiv1.ServiceTypeClusterIP,
 			//Type: apiv1.ServiceTypeLoadBalancer,
 		}
-		servicePort = strconv.Itoa(80)
+		servicePort = strconv.Itoa(constants.KEYCLOAK_DEFAULT_HTTPS_PORT)
+	} else {
+		serviceObj = apiv1.ServiceSpec{
+			Ports: []apiv1.ServicePort{
+				{
+					Name:       "http",
+					Port:       constants.KEYCLOAK_DEFAULT_HTTP_PORT,                  //internally exposed port
+					TargetPort: apiutil.FromInt(constants.KEYCLOAK_DEFAULT_HTTP_PORT), //port on pod
+					Protocol:   apiv1.ProtocolTCP,
+				},
+				{
+					Name:       "https",
+					Port:       constants.KEYCLOAK_DEFAULT_HTTPS_PORT,                  //internally exposed port
+					TargetPort: apiutil.FromInt(constants.KEYCLOAK_DEFAULT_HTTPS_PORT), //port on pod
+					Protocol:   apiv1.ProtocolTCP,
+				},
+				{
+					Name:       "jgroup",
+					Port:       constants.KEYCLOAK_DEFAULT_JGROUP_PORT,                  //internally exposed port
+					TargetPort: apiutil.FromInt(constants.KEYCLOAK_DEFAULT_JGROUP_PORT), //port on pod
+					// Protocol: apiv1.ProtocolTCP,
+				},
+			},
+			Selector: map[string]string{
+				"app": deploymentName,
+			},
+			//Type: apiv1.ServiceTypeNodePort,
+			Type: apiv1.ServiceTypeClusterIP,
+			//Type: apiv1.ServiceTypeLoadBalancer,
+		}
+		servicePort = strconv.Itoa(constants.KEYCLOAK_DEFAULT_HTTP_PORT)
 	}
 	return serviceObj, servicePort
 }
@@ -1003,14 +1110,14 @@ func (c *KeysaasController) waitForPod(foo *operatorv1.Keysaas) (string, bool) {
 	// Check if Postgres Pod is ready or not
 	podReady := false
 	podTimeoutCount := 0
-	TIMEOUT_COUNT := 150 // 150*4(sleep time)=600=10 minutes; this should be made configurable
+	TIMEOUT_COUNT := constants.WAIT_FOR_POD_TIMEOUT // 75*4(sleep time)=300=5 minutes; this should be made configurable
 	for {
 		pods := c.getPods(namespace, deploymentName)
 		for _, d := range pods.Items {
 			//my-hello-5fb5bb554-8l22r sp
 			parts := strings.Split(d.Name, "-")
 			parts = parts[:len(parts)-2]
-			podDepName := strings.Join(parts, "")
+			podDepName := strings.Join(parts, "-")
 			if podDepName == deploymentName {
 				podName = d.Name
 				c.logger.Info("Keysaas Pod Name", "pod name", podName)
@@ -1053,13 +1160,9 @@ func (c *KeysaasController) waitForPod(foo *operatorv1.Keysaas) (string, bool) {
 func (c *KeysaasController) getPods(namespace, deploymentName string) *apiv1.PodList {
 	// TODO(devkulkarni): This is returning all Pods. We should change this
 	// to only return Pods whose Label matches the Deployment Name.
+	deploymentName = "app=" + deploymentName
 	pods, err := c.kubeclientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
-		//LabelSelector: deploymentName,
-		//LabelSelector: metav1.LabelSelector{
-		//	MatchLabels: map[string]string{
-		//	"app": deploymentName,
-		//},
-		//},
+		LabelSelector: deploymentName,
 	})
 	c.logger.Info("Number of pods in a cluster", "number", len(pods.Items))
 	if err != nil {
@@ -1069,3 +1172,39 @@ func (c *KeysaasController) getPods(namespace, deploymentName string) *apiv1.Pod
 }
 
 func int32Ptr(i int32) *int32 { return &i }
+
+func (c *KeysaasController) createDatabaseSchema(namespace, deploymentName, dbHost, dbPort, dbName, dbUser, dbPass, schemaName string) error {
+	// // TODO: THIS IS FOR TESTING ONLY, MUST USE THE SECOND ONE WHEN DEPLOYING INSIDE THE CLUSTER
+	// connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/postgres?sslmode=disable", dbUser, dbPass, "192.168.49.2", "30500")
+	// //connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", dbHost, dbPort, dbUser, dbPass, dbName)
+	// c.logger.Info("KeysaasController.go : Database to connect " + connStr)
+	// db, err := sql.Open("postgres", connStr)
+	// if err != nil {
+	// 	return err
+	// }
+	// defer db.Close()
+
+	// // Create the schema
+	// command := fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s;", schemaName)
+	// result, err := db.Exec(command)
+	// c.logger.Info("UWUWUUUUUUUUUUUUUUUUUUUUUUUUU", "result", result, "error", err)
+	// if err != nil {
+	// 	return err
+	// }
+	deploymentName = "keysaas-postgresql"
+	pods := c.getPods(namespace, deploymentName)
+	for _, d := range pods.Items {
+		//my-hello-5fb5bb554-8l22r sp
+		parts := strings.Split(d.Name, "-")
+		parts = parts[:len(parts)-2]
+		podDepName := strings.Join(parts, "-")
+		if podDepName == deploymentName {
+			// command := fmt.Sprintf(`psql -U %s -c "CREATE SCHEMA IF NOT EXISTS %s;" -d %s`, dbUser, schemaName, dbName)
+			command2 := []string{"psql", "-U", dbUser, "-c", "CREATE SCHEMA IF NOT EXISTS " + schemaName + ";", "-d", dbName}
+			success := c.util.ExecuteExecCall(d.Name, "postgresql", namespace, command2)
+			c.logger.Info("KeysaasController.go : Try to create new schema at pod", "pod", d.Name, "success", success)
+			return nil
+		}
+	}
+	return errors.New("couldn't create a new schema")
+}

@@ -4,4 +4,5 @@ metadata:
   name: keysaastest
   namespace: customer2
 spec:
-  domainName: "keysaastest.local"
+  tls: "1"
+  domainName: "keysaastest.kubernetes.local"

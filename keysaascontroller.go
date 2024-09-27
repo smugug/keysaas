@@ -65,10 +65,10 @@ const (
 	FieldManager = controllerAgentName
 )
 
-var (
-	KEYSAAS_PORT_BASE = 30060
-	KEYSAAS_PORT      int
-)
+// var (
+// 	KEYSAAS_PORT_BASE = 30060
+// 	KEYSAAS_PORT      int
+// )
 
 func init() {
 }
@@ -313,10 +313,10 @@ func (c *KeysaasController) syncHandler(ctx context.Context, objRef cache.Object
 
 		c.logger.Info("KeysaasController.go", "domain name", keysaasDomainName)
 
-		KEYSAAS_PORT = KEYSAAS_PORT_BASE
-		KEYSAAS_PORT_BASE = KEYSAAS_PORT_BASE + 1
+		// KEYSAAS_PORT = KEYSAAS_PORT_BASE
+		// KEYSAAS_PORT_BASE = KEYSAAS_PORT_BASE + 1
 
-		c.logger.Info("KeysaasController.go: Deploying Keysaas", "port", KEYSAAS_PORT)
+		c.logger.Info("KeysaasController.go: Deploying Keysaas")
 
 		initialDeployment = false
 

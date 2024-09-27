@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/smugug/keysaas/pkg/utils/constants"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,40 +29,41 @@ func NewUtils(
 	utils := Utils{cfg: _cfg, kubeclientset: _kubeclientset}
 	return utils
 }
-func (u *Utils) Exec(pluginName, keysaasPodName, namespace, downloadLink, installFolder string) bool {
 
-	fmt.Println("Inside exec")
+// func (u *Utils) Exec(pluginName, keysaasPodName, namespace, downloadLink, installFolder string) bool {
 
-	_, err := u.kubeclientset.CoreV1().Pods(namespace).Get(context.TODO(), keysaasPodName, metav1.GetOptions{})
+// 	fmt.Println("Inside exec")
 
-	if err != nil {
-		fmt.Printf("Could not get the pod: %s\n", keysaasPodName)
-		panic(err)
-	}
+// 	_, err := u.kubeclientset.CoreV1().Pods(namespace).Get(context.TODO(), keysaasPodName, metav1.GetOptions{})
 
-	indexOfLastSlash := strings.LastIndex(downloadLink, "/")
-	pluginZipFileName := downloadLink[indexOfLastSlash+1:]
-	fmt.Printf("Plugin ZipFile Name:%s\n", pluginZipFileName)
+// 	if err != nil {
+// 		fmt.Printf("Could not get the pod: %s\n", keysaasPodName)
+// 		panic(err)
+// 	}
 
-	downloadPluginCmd := "wget " + downloadLink + " -O /tmp/" + pluginZipFileName
-	fmt.Printf("Download Plugin Cmd:%s\n", downloadPluginCmd)
-	u.ExecuteExecCall(keysaasPodName, namespace, downloadPluginCmd)
+// 	indexOfLastSlash := strings.LastIndex(downloadLink, "/")
+// 	pluginZipFileName := downloadLink[indexOfLastSlash+1:]
+// 	fmt.Printf("Plugin ZipFile Name:%s\n", pluginZipFileName)
 
-	unzipPluginCmd := "unzip /tmp/" + pluginZipFileName + " -d " + "/tmp/."
-	fmt.Printf("Unzip Plugin Cmd:%s\n", unzipPluginCmd)
-	u.ExecuteExecCall(keysaasPodName, namespace, unzipPluginCmd)
+// 	downloadPluginCmd := {"wget "downloadLink + " -O /tmp/" + pluginZipFileName}
+// 	fmt.Printf("Download Plugin Cmd:%s\n", downloadPluginCmd)
+// 	u.ExecuteExecCall(keysaasPodName, constants.CONTAINER_NAME, namespace, downloadPluginCmd)
 
-	mvPluginCmd := "mv /tmp/" + pluginName + " " + installFolder + "."
-	fmt.Printf("Move Plugin Cmd:%s\n", mvPluginCmd)
-	success := u.ExecuteExecCall(keysaasPodName, namespace, mvPluginCmd)
+// 	unzipPluginCmd := "unzip /tmp/" + pluginZipFileName + " -d " + "/tmp/."
+// 	fmt.Printf("Unzip Plugin Cmd:%s\n", unzipPluginCmd)
+// 	u.ExecuteExecCall(keysaasPodName, constants.CONTAINER_NAME, namespace, unzipPluginCmd)
 
-	if success {
-		fmt.Printf("Done installing plugin %s\n", pluginName)
-	} else {
-		fmt.Printf("Encountered error in installing plugin %s\n", pluginName)
-	}
-	return success
-}
+// 	mvPluginCmd := "mv /tmp/" + pluginName + " " + installFolder + "."
+// 	fmt.Printf("Move Plugin Cmd:%s\n", mvPluginCmd)
+// 	success := u.ExecuteExecCall(keysaasPodName, constants.CONTAINER_NAME, namespace, mvPluginCmd)
+
+// 	if success {
+// 		fmt.Printf("Done installing plugin %s\n", pluginName)
+// 	} else {
+// 		fmt.Printf("Encountered error in installing plugin %s\n", pluginName)
+// 	}
+// 	return success
+// }
 
 /*
 Reference for kubectl exec:
@@ -71,7 +71,7 @@ Reference for kubectl exec:
 - https://stackoverflow.com/questions/43314689/example-of-exec-in-k8ss-pod-by-using-go-client/43315545#43315545
 - https://github.com/kubernetes/client-go/issues/204
 */
-func (u *Utils) ExecuteExecCall(keysaasPodName, namespace, command string) bool {
+func (u *Utils) ExecuteExecCall(keysaasPodName, containerName, namespace string, command []string) bool {
 	fmt.Println("Inside ExecuteExecCall")
 	req := u.kubeclientset.CoreV1().RESTClient().Post().
 		Resource("pods").
@@ -87,8 +87,8 @@ func (u *Utils) ExecuteExecCall(keysaasPodName, namespace, command string) bool 
 
 	parameterCodec := runtime.NewParameterCodec(scheme)
 	req.VersionedParams(&corev1.PodExecOptions{
-		Command:   strings.Fields(command),
-		Container: constants.CONTAINER_NAME,
+		Command:   command,
+		Container: containerName,
 		//Stdin:     stdin != nil,
 		Stdout: true,
 		Stderr: true,
@@ -106,7 +106,7 @@ func (u *Utils) ExecuteExecCall(keysaasPodName, namespace, command string) bool 
 		execErr bytes.Buffer
 	)
 
-	err = exec.Stream(remotecommand.StreamOptions{
+	err = exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
 		Stdin:  nil,
 		Stdout: &execOut,
 		Stderr: &execErr,

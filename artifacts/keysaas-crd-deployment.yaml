@@ -91,3 +91,37 @@ spec:
       #   hostPath:
       #     path: /home/nadeko/test/
       #     type: Directory
+# ---
+# apiVersion: storage.k8s.io/v1
+# kind: StorageClass
+# metadata:
+#   name: manual
+# provisioner: kubernetes.io/no-provisioner
+# volumeBindingMode: Immediate
+# ---
+# apiVersion: v1
+# kind: PersistentVolume
+# metadata:
+#   name: keycloak-wildcard-cert
+#   labels:
+#     type: cert-data
+# spec:
+#   capacity:
+#     storage: 10Mi
+#   accessModes:
+#   - ReadOnlyMany
+#   persistentVolumeReclaimPolicy: Recycle
+#   storageClassName: manual
+#   hostPath:
+#     path: /mnt/Desktop/keysaas/certificate  # Directory on the host for certificates
+# ---
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: kubernetes-tls
+#   namespace: customer2 
+# type: kubernetes.io/tls
+# data:
+#   tls.crt: <base64-encoded-certificate>
+#   tls.key: <base64-encoded-key>
+# ---
