@@ -5,3 +5,4 @@ tmp
 keysaas
 certificate/*
 keycloak-*
+node_modules/

@@ -1,0 +1,34 @@
+/* The container holds both the list and form */
+
+html, body {
+  height: 100%; /* Ensure html and body cover full height */
+  margin: 0; /* Remove default margin */
+}
+
+.container {
+  display: flex;
+  min-height: 100vh; /* Ensure it takes at least full viewport height */
+  padding: 20px;
+  box-sizing: border-box; /* Include padding in the height calculation */
+  overflow-y: auto; /* Allow vertical scrolling if content exceeds viewport height */
+} 
+
+/* Styling for the form section */
+.form {
+  flex: 1; /* Take up one part of the container */
+  padding-right: 20px;
+  border-right: 1px solid #ccc; /* Right border to separate the sections */
+  margin-bottom: 30px;
+}
+
+/* Styling for the list section */
+.list {
+  flex: 2; /* Take up twice the width of the list section */
+  padding-left: 20px;
+  margin-bottom: 30px;
+}
+
+body, p, label, input, select, button {
+  font-size: 18px;
+  font-family: Helvetica, sans-serif;
+}

@@ -1,0 +1,64 @@
+/* Container for the entire list */
+.list-container {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* KeySaaS list styling */
+.keysaas-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Individual KeySaaS item */
+.keysaas-item {
+  border: 1px solid #ccc;
+  padding: 15px;
+  margin-bottom: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.keysaas-item:hover {
+  background-color: #f9f9f9;
+}
+
+/* Flexbox layout for summary section */
+.keysaas-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Style for the delete button */
+.delete-button {
+  background-color: #ff4d4d;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.delete-button:hover {
+  background-color: #e63946;
+}
+
+/* Expanded details section */
+.keysaas-details {
+  margin-top: 10px;
+  padding-left: 10px;
+  border-left: 2px solid #ccc;
+}
+
+.keysaas-details p {
+  margin: 5px 0;
+}
+
+/* Bold titles in details */
+.keysaas-details strong {
+  font-weight: bold;
+}

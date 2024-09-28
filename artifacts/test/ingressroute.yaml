@@ -1,0 +1,16 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: keysaastest
+  namespace: customer2
+spec:
+  entryPoints:
+    - websecure
+  routes:
+  - kind: Rule
+    match: Host(`keysaastest2.kubernetes.local`)
+    services:
+    - name: keysaastest
+      port: 9000
+  tls:
+    secretName: kubernetes-tls

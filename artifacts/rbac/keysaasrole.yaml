@@ -1,0 +1,29 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: customer2
+  name: keycloak-manager
+rules:
+- apiGroups: ["keysaascontroller.keysaas"]
+  resources: ["keysaases"] 
+  verbs: ["get", "list", "create", "delete", "update"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: webgui-account
+  namespace: customer2
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: keycloak-manager-binding
+  namespace: customer2
+subjects:
+- kind: ServiceAccount
+  name: webgui-account
+  namespace: customer2
+roleRef:
+  kind: Role
+  name: keycloak-manager
+  apiGroup: rbac.authorization.k8s.io

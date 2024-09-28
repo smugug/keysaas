@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: keysaas-monitor
+  labels:
+    app: keysaas
+    prometheus: system-monitoring-prometheus
+spec:
+  endpoints:
+    - port: management  # The port where metrics are exposed
+      path: /metrics
+      interval: 30s
+  namespaceSelector:
+    matchNames:
+      - customer2
+  selector:
+    matchLabels:
+      app: keysaastest

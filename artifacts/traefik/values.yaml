@@ -1,0 +1,16 @@
+service:
+  type: LoadBalancer
+  externalIPs:
+    - 192.168.1.100
+ports:
+  web:
+    nodePort: 30000
+  websecure:
+    asDefault: true
+    nodePort: 30001
+entryPoints:
+  web:
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
