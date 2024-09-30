@@ -224,3 +224,10 @@ func (u *Utils) GetPodFullName(timeout int, podname, namespace string) (string, 
 // 	}
 // 	return supportedPlugins, unsupportedPlugins
 // }
+
+func defaultIfEmpty(value, defaultValue string) string {
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}

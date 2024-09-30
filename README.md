@@ -34,5 +34,4 @@ kubectl apply -f artifacts/keysaastest.yaml
 - monitor
 
 # NOTE
-FUCK YOU AXIOS. YOU COSTED ME A NIGHT.
-welp somehow you can't use axios to connect to other pods, request works well
+welp somehow you can't use axios to connect to other pods with cacert, request works well

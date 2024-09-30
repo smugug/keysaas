@@ -1,6 +1,7 @@
 import express from 'express';
 import keySaaSRoutes from './routes/keysaas';
 import prometheusRoutes from './routes/prometheus';
+import themeRoutes from './routes/theme';
 import fs from 'fs';
 import cors from 'cors';
 
@@ -28,7 +29,7 @@ app.use(express.json());
 // Routes
 app.use('/api/keysaas', keySaaSRoutes);
 app.use('/api/prometheus', prometheusRoutes);
-
+app.use('/api/theme', themeRoutes);
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);

@@ -26,13 +26,12 @@ func (c *KeysaasController) deployKeysaas(ctx context.Context, foo *operatorv1.K
 	var keysaasPodName, serviceURIToReturn string
 	var err error = nil
 	deleteFuncs := []func(foo *operatorv1.Keysaas) error{}
-	//success = c.createPersistentVolume(foo)
-	// defer func() {
-	// 	if !success {
-	// 		c.deletePersistentVolume(foo)
-	// 	}
-	// }()
-
+	err = c.createPersistentVolume(foo)
+	if err != nil {
+		c.logger.Error(err, "KeysaasController.go : Error creating PV")
+		return "", "", "", err
+	}
+	deleteFuncs = append(deleteFuncs, c.deletePersistentVolume)
 	// if foo.Spec.PvcVolumeName == "" {
 	err = c.createPersistentVolumeClaim(foo)
 	if err != nil {
@@ -105,7 +104,7 @@ func (c *KeysaasController) deployKeysaas(ctx context.Context, foo *operatorv1.K
 	// }
 
 	if foo.Spec.DomainName == "" {
-		serviceURIToReturn = foo.Name + ":" + servicePort
+		serviceURIToReturn = foo.Name + "." + constants.BASE_URL
 	} else {
 		serviceURIToReturn = foo.Spec.DomainName + ":" + servicePort
 	}
@@ -355,20 +354,18 @@ func (c *KeysaasController) createPersistentVolume(foo *operatorv1.Keysaas) erro
 		Spec: apiv1.PersistentVolumeSpec{
 			StorageClassName: "standard",
 			Capacity: apiv1.ResourceList{
-				//					map[string]resource.Quantity{
-				"storage": resource.MustParse("1Gi"),
-				//					},
+				"storage": resource.MustParse("50Mi"),
 			},
 			AccessModes: []apiv1.PersistentVolumeAccessMode{
-				//					{
 				"ReadWriteOnce",
-				//					},
 			},
+			// MINIKUBE ONLY SUPPORTS CERTAIN HOSTPATHS. MAKE SURE TO CHECK IT OUT
 			PersistentVolumeSource: apiv1.PersistentVolumeSource{
 				HostPath: &apiv1.HostPathVolumeSource{
-					Path: "/mnt/keysaas-data",
+					Path: "/tmp/hostpath_pv/" + deploymentName,
 				},
 			},
+			PersistentVolumeReclaimPolicy: apiv1.PersistentVolumeReclaimDelete,
 		},
 	}
 
@@ -385,18 +382,16 @@ func (c *KeysaasController) createPersistentVolume(foo *operatorv1.Keysaas) erro
 	c.logger.Info("KeysaasController.go : Created persistentVolume", "pv name", result.GetObjectMeta().GetName())
 	return nil
 }
+func (c *KeysaasController) deletePersistentVolume(foo *operatorv1.Keysaas) error {
+	return c.kubeclientset.CoreV1().PersistentVolumes().Delete(context.TODO(), foo.Name, *metav1.NewDeleteOptions(0))
+}
 
 func (c *KeysaasController) createPersistentVolumeClaim(foo *operatorv1.Keysaas) error {
 	c.logger.Info("KeysaasController.go : Inside createPersistentVolumeClaim")
 
 	/// STANDARD HAS DYNAMIC PROVISION (AUTO CREATING PV), MANUAL DOESN'T
 	standardStorageClassName := "standard"
-	// manualStorageClassName := "manual"
 	deploymentName := foo.Name
-	/// WARNING
-	/// WE NEED 2 PERSISTENT VOLUME CLAIM
-	/// 1 IS FOR CUSTOM THEMES
-	/// 1 IS FOR WILDCARD CERTIFICATE, OR CUSTOM CERTIFICATE
 	pvcTheme := &apiv1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: deploymentName,
@@ -411,53 +406,16 @@ func (c *KeysaasController) createPersistentVolumeClaim(foo *operatorv1.Keysaas)
 		},
 		Spec: apiv1.PersistentVolumeClaimSpec{
 			AccessModes: []apiv1.PersistentVolumeAccessMode{
-				//					{
 				"ReadWriteOnce",
-				//					},
 			},
 			StorageClassName: &standardStorageClassName,
 			Resources: apiv1.VolumeResourceRequirements{
 				Requests: apiv1.ResourceList{
 					apiv1.ResourceStorage: resource.MustParse("50Mi"),
-					//							map[string]resource.Quantity{
-					//							"storage": resource.MustParse("1Gi"),
-					//						},
 				},
 			},
 		},
 	}
-
-	// pvcCertificateName := deploymentName + "-certificate"
-	// pvcCertificate := &apiv1.PersistentVolumeClaim{
-	// 	ObjectMeta: metav1.ObjectMeta{
-	// 		Name: pvcCertificateName,
-	// 		OwnerReferences: []metav1.OwnerReference{
-	// 			{
-	// 				APIVersion: constants.API_VERSION,
-	// 				Kind:       constants.KEYSAAS_KIND,
-	// 				Name:       foo.Name,
-	// 				UID:        foo.UID,
-	// 			},
-	// 		},
-	// 	},
-	// 	Spec: apiv1.PersistentVolumeClaimSpec{
-	// 		AccessModes: []apiv1.PersistentVolumeAccessMode{
-	// 			"ReadOnlyMany",
-	// 		},
-	// 		StorageClassName: &manualStorageClassName,
-	// 		Resources: apiv1.VolumeResourceRequirements{
-	// 			Requests: apiv1.ResourceList{
-	// 				apiv1.ResourceStorage: resource.MustParse("10Mi"),
-	// 			},
-	// 		},
-	// 		Selector: &metav1.LabelSelector{
-	// 			MatchLabels: map[string]string{
-	// 				"type": "cert-data",
-	// 			},
-	// 		},
-	// 	},
-	// }
-
 	namespace := getNamespace(foo)
 	persistentVolumeClaimClient := c.kubeclientset.CoreV1().PersistentVolumeClaims(namespace)
 
@@ -466,18 +424,8 @@ func (c *KeysaasController) createPersistentVolumeClaim(foo *operatorv1.Keysaas)
 	if kerrors.IsAlreadyExists(err) {
 		c.logger.Info("KeysaasController.go : persistentVolumeClaim for theme already exists", "pv name", pvcTheme.GetObjectMeta().GetName())
 	} else if err != nil {
-		// c.logger.Error(err, "KeysaasController.go : ")
 		return err
 	}
-
-	// c.logger.Info("KeysaasController.go : Creating persistentVolumeClaim for Certificates...")
-	// _, err = persistentVolumeClaimClient.Create(context.TODO(), pvcCertificate, metav1.CreateOptions{})
-	// if kerrors.IsAlreadyExists(err) {
-	// 	c.logger.Info("KeysaasController.go : persistentVolumeClaim for certificate already exists", "pv name", pvcCertificate.GetObjectMeta().GetName())
-	// } else if err != nil {
-	// 	// c.logger.Error(err, "KeysaasController.go : ")
-	// 	return err
-	// }
 	c.logger.Info("KeysaasController.go : Created persistentVolumeClaims")
 	return nil
 }
@@ -557,10 +505,11 @@ func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas, adminPassw
 
 	c.logger.Info("KeysaasController.go : HOST and PORT", "HOST_NAME", HOST_NAME, "PORT")
 
+	defaultIfEmpty(&foo.Spec.LimitsCpu, "500m")
+	defaultIfEmpty(&foo.Spec.LimitsMemory, "512Mi")
 	/// WARNING
-	/// KEYCLOAK PRODUCTION (start) REQUIRES HTTPS/TLS AND HOST NAME!!!
+	/// KEYCLOAK PRODUCTION (start) REQUIRES HTTPS/TLS AND HOST NAME BY DEFAULT
 	/// KEYCLOAK TESTING (start-dev)
-
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: deploymentName,
@@ -1115,11 +1064,17 @@ func (c *KeysaasController) createDatabaseSchema(namespace, deploymentName, dbHo
 		podDepName := strings.Join(parts, "-")
 		if podDepName == deploymentName {
 			// command := fmt.Sprintf(`psql -U %s -c "CREATE SCHEMA IF NOT EXISTS %s;" -d %s`, dbUser, schemaName, dbName)
-			command2 := []string{"psql", "-U", dbUser, "-c", "CREATE SCHEMA IF NOT EXISTS " + schemaName + ";", "-d", dbName}
+			command2 := []string{"psql", "-U", dbUser, "-c", "DROP SCHEMA IF EXISTS " + schemaName + " CASCADE; CREATE SCHEMA " + schemaName + ";", "-d", dbName}
 			success := c.util.ExecuteExecCall(d.Name, "postgresql", namespace, command2)
 			c.logger.Info("KeysaasController.go : Try to create new schema at pod", "pod", d.Name, "success", success)
 			return nil
 		}
 	}
 	return errors.New("couldn't create a new schema")
+}
+
+func defaultIfEmpty(value *string, defaultValue string) {
+	if *value == "" {
+		*value = defaultValue
+	}
 }

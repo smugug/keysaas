@@ -7,6 +7,9 @@ rules:
 - apiGroups: ["keysaascontroller.keysaas"]
   resources: ["keysaases"] 
   verbs: ["get", "list", "create", "delete", "update"]
+- apiGroups: [""]  # Core API
+  resources: ["persistentvolumes"]
+  verbs: ["get", "list", "update"]
 ---
 apiVersion: v1
 kind: ServiceAccount

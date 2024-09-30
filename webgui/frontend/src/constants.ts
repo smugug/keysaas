@@ -3,3 +3,19 @@ export const PROMETHEUS_URL = 'http://kubernetes.local:30005/api/prometheus'
 export const getToken = (): string | null => {
     return localStorage.getItem('token');
 };
+export interface KeySaaSResource {
+    apiVersion: string;
+    kind: string;
+    metadata: {
+      name: string;
+      namespace: string;
+    };
+    spec: {
+      domainName: string;
+      keysaasPassword: string;
+      keysaasUsername: string;
+      limitsCpu: string;
+      limitsMemory: string;
+      tls: string;
+    };
+  }
