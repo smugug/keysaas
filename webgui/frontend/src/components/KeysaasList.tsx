@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './KeysaasList.css';
 import {deleteKeySaaSInstance,getKeySaaSInstances} from '../api'
 
 // Interface for Keysaas Instance
-interface KeysaasInstance {
+export interface KeysaasInstance {
   metadata: {
     name: string;
   };
@@ -29,10 +30,18 @@ const KeysaasList: React.FC = () => {
   const [expanded, setExpanded] = useState<{ [key: string]: boolean }>({});
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
+  // Function to handle the button click to navigate to the detail page
+  const goToDetail = (name: string) => {
+    navigate(`/keysaas/${name}`);
+  };
   // Fetch Keysaas instances from Kubernetes API
   const fetchKeysaasInstances = async () => {
     setLoading(true);
+
+    
+
     try {
       const data =await getKeySaaSInstances()
       console.log(data)
@@ -59,7 +68,6 @@ const KeysaasList: React.FC = () => {
       }
     }
   };
-
   // Toggle expand/collapse
   const toggleExpand = (name: string) => {
     setExpanded((prevState) => ({ ...prevState, [name]: !prevState[name] }));
@@ -79,41 +87,44 @@ const KeysaasList: React.FC = () => {
   }
 
   return (
-    <div className="list-container">
-      <h2>KeySaaS Instances</h2>
-      <ul className="keysaas-list">
-        {keySaaSInstances.map((instance: any) => (
-          <li
-            key={instance.metadata.name}
-            className={`keysaas-item ${expanded[instance.metadata.name] ? "expanded" : ""}`}
-            onClick={() => toggleExpand(instance.metadata.name)}
-          >
-            <div className="keysaas-summary">
-              <p><strong>Name:</strong> {instance.metadata.name}</p>
-              <p><strong>Status:</strong> {instance.status?.status || "Unknown"}</p>
-              <button
-                className="delete-button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDelete(instance.metadata.name);
-                }}
-              >
-                Delete
-              </button>
-            </div>
-
-            {expanded[instance.metadata.name] && (
-              <div className="keysaas-details">
-                <p><strong>Pod Name:</strong> {instance.status?.podName}</p>
-                <p><strong>Secret Name:</strong> {instance.status?.secretName}</p>
-                <p><strong>URL:</strong> {instance.status?.url}</p>
-                <p><strong>TLS:</strong> {instance.spec.tls}</p>
+      <div className="list-container">
+        <h2>KeySaaS Instances</h2>
+        <ul className="keysaas-list">
+          {keySaaSInstances.map((instance: any) => (
+            <li
+              key={instance.metadata.name}
+              className={`keysaas-item ${expanded[instance.metadata.name] ? "expanded" : ""}`}
+              onClick={() => toggleExpand(instance.metadata.name)}
+            >
+              <div className="keysaas-summary">
+                <p><strong>Name:</strong> {instance.metadata.name}</p>
+                <p><strong>Status:</strong> {instance.status?.status || "Unknown"}</p>
+                <button className="delete-button" onClick={()=>goToDetail(instance.metadata.name)} >
+                  Go to details
+                </button>
+                <button
+                  className="delete-button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(instance.metadata.name);
+                  }}
+                >
+                  Delete
+                </button>
               </div>
-            )}
-          </li>
-        ))}
-      </ul>
-    </div>
+
+              {expanded[instance.metadata.name] && (
+                <div className="keysaas-details">
+                  <p><strong>Pod Name:</strong> {instance.status?.podName}</p>
+                  <p><strong>Secret Name:</strong> {instance.status?.secretName}</p>
+                  <p><strong>URL:</strong> {instance.status?.url}</p>
+                  <p><strong>TLS:</strong> {instance.spec.tls}</p>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
   );
 };
 

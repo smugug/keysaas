@@ -1,0 +1,76 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: customer2
+  name: keycloak-manager
+rules:
+- apiGroups: ["keysaascontroller.keysaas"]
+  resources: ["keysaases"] 
+  verbs: ["get", "list", "create", "delete", "update"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: webgui-account
+  namespace: customer2
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: keycloak-manager-binding
+  namespace: customer2
+subjects:
+- kind: ServiceAccount
+  name: webgui-account
+  namespace: customer2
+roleRef:
+  kind: Role
+  name: keycloak-manager
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keysaas-web-backend
+  namespace: customer2
+  labels:
+    app: keysaas-web-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keysaas-web-backend
+  template:
+    metadata:
+      labels:
+        app: keysaas-web-backend
+    spec:
+      serviceAccountName: webgui-account
+      containers:
+      - name: keysaas-web-backend
+        image: nadekosengoku/keysaas-web-backend:0.0.12
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 4000
+        env:
+        - name: BASE_URL
+          value: "https://kubernetes.default.svc/apis/keysaascontroller.keysaas/v1/namespaces/customer2/keysaases"
+        - name: PROMETHEUS_URL
+          value: "http://prometheus-operated:9090/api/v1"
+        
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keysaas-web-service
+  namespace: customer2
+spec:
+  selector:
+    app: keysaas-web-backend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 4000
+      nodePort: 30005
+  type: NodePort
+---

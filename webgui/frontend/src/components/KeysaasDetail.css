@@ -1,0 +1,20 @@
+body {
+  margin: 0; /* Reset default body margin */
+}
+
+.flexcontainer {
+  display: flex;           /* Enable Flexbox */
+  flex-wrap: wrap;        /* Allow items to wrap to the next line */
+  justify-content: space-between; /* Distribute items evenly */
+}
+
+.flexitem {
+  flex: 0 0 48%;          /* Each item takes up roughly 48% of the width */
+  margin-bottom: 20px;    /* Space between rows */
+  background-color: #f0f0f0; /* Background color */
+  border: 1px solid #ddd; /* Border */
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1); /* Optional shadow */
+  padding: 20px;          /* Inner padding */
+  text-align: center;     /* Center text */
+}
+

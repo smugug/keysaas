@@ -55,4 +55,23 @@ spec:
   serviceMonitorNamespaceSelector: {}
   serviceMonitorSelector: {}
   podMonitorSelector: {}
+  routePrefix: /
+  externalUrl: kubernetes.local
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    operated-prometheus: "true"
+  name: prometheus-main
+  namespace: default
+spec: 
+  ports:
+  - name: web
+    port: 9090
+    protocol: TCP
+    targetPort: web
+    nodePort: 30003
+  selector:
+    app.kubernetes.io/name: prometheus
+  type: NodePort

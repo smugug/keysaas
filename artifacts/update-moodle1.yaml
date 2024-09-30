@@ -1,9 +1,0 @@
-apiVersion: keysaascontroller.keysaas/v1
-kind: Keysaas
-metadata:
-  name: keysaas1
-spec:
-  mySQLServiceName: my-cluster-mysql-master
-  mySQLUserName: root
-  mySQLUserPassword: cluster1-secret.ROOT_PASSWORD
-  keysaasAdminEmail: test@test.com

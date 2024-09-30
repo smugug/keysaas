@@ -33,17 +33,17 @@ func (c *KeysaasController) deployKeysaas(ctx context.Context, foo *operatorv1.K
 	// 	}
 	// }()
 
-	if foo.Spec.PvcVolumeName == "" {
-		err = c.createPersistentVolumeClaim(foo)
-		if err != nil {
-			c.logger.Error(err, "KeysaasController.go : Error creating PVC")
-			for i := len(deleteFuncs) - 1; i >= 0; i-- {
-				deleteFuncs[i](foo)
-			}
-			return "", "", "", err
+	// if foo.Spec.PvcVolumeName == "" {
+	err = c.createPersistentVolumeClaim(foo)
+	if err != nil {
+		c.logger.Error(err, "KeysaasController.go : Error creating PVC")
+		for i := len(deleteFuncs) - 1; i >= 0; i-- {
+			deleteFuncs[i](foo)
 		}
-		deleteFuncs = append(deleteFuncs, c.deletePersistentVolumeClaim)
+		return "", "", "", err
 	}
+	deleteFuncs = append(deleteFuncs, c.deletePersistentVolumeClaim)
+	// }
 	servicePort, err := c.createService(foo)
 	if err != nil {
 		c.logger.Error(err, "KeysaasController.go : Error creating Service")
@@ -501,10 +501,9 @@ func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas, adminPassw
 	//image := "lmecld/nginxforkeysaas6:latest"
 	//	image = "lmecld/nginxforkeysaas10:latest"
 
-	claimName := foo.Spec.PvcVolumeName
-	if claimName == "" {
-		claimName = foo.Name
-	}
+	// claimName := foo.Spec.PvcVolumeName
+	// if claimName == "" {
+	claimName := foo.Name
 
 	//MySQL Service IP and Port
 	postgresqlServiceName := "keysaas-postgresql" //foo.Spec.MySQLServiceName
@@ -527,9 +526,6 @@ func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas, adminPassw
 	}
 
 	c.logger.Info("KeysaasController.go : postgresql Password", "postgresql password", postgresqlUserPassword)
-
-	keysaasAdminEmail := foo.Spec.KeysaasAdminEmail
-	c.logger.Info("KeysaasController.go : Keysaas Admin Email", "keysaas email", keysaasAdminEmail)
 
 	postgresqlServiceClient := c.kubeclientset.CoreV1().Services(namespace)
 	postgresqlServiceResult, err := postgresqlServiceClient.Get(context.TODO(), postgresqlServiceName, metav1.GetOptions{})
@@ -632,6 +628,12 @@ func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas, adminPassw
 									TimeoutSeconds:      60,
 									PeriodSeconds:       2,
 								},*/
+							Resources: apiv1.ResourceRequirements{
+								Limits: apiv1.ResourceList{
+									apiv1.ResourceCPU:    resource.MustParse(foo.Spec.LimitsCpu),
+									apiv1.ResourceMemory: resource.MustParse(foo.Spec.LimitsMemory),
+								},
+							},
 							Env: []apiv1.EnvVar{
 								{
 									Name:  "KEYCLOAK_PRODUCTION",
@@ -667,11 +669,11 @@ func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas, adminPassw
 								},
 								{
 									Name:  "KEYCLOAK_ADMIN",
-									Value: "user",
+									Value: foo.Spec.KeysaasUsername,
 								},
 								{
 									Name:  "KEYCLOAK_ADMIN_PASSWORD",
-									Value: "password", //adminPassword,
+									Value: foo.Spec.KeysaasPassword, //adminPassword,
 								},
 								{
 									Name:  "KEYCLOAK_ENABLE_HTTPS",

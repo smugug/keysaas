@@ -24,11 +24,15 @@ helm install traefik traefik/traefik -f artifacts/traefik/values.yaml
 kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.15.3/cert-manager.yaml
 kubectl apply -f artifacts/cert-manager/clusterissuer.yaml
 
+kubectl apply -f artifacts/rbac-web/keysaasrole.yaml
 
 # Deploy keysaas
 kubectl apply -f artifacts/keysaastest.yaml
 
-# TODO  
-- rbac
+# TODO
 - web gui
 - monitor
+
+# NOTE
+FUCK YOU AXIOS. YOU COSTED ME A NIGHT.
+welp somehow you can't use axios to connect to other pods, request works well

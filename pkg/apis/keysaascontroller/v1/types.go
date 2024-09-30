@@ -21,20 +21,13 @@ type Keysaas struct {
 // KeysaasSpec is the spec for a KeysaasSpec resource
 // +k8s:openapi-gen=true
 type KeysaasSpec struct {
-	//MySQL Service name
-	MySQLServiceName string `json:"mySQLServiceName"`
-	//MySQL Username
-	MySQLUserName string `json:"mySQLUserName"`
-	//MySQL Password
-	MySQLUserPassword string `json:"mySQLUserPassword"`
-	//Keysaas Admin Email
-	KeysaasAdminEmail string `json:"keysaasAdminEmail"`
-	//PVC Volume Name
-	PvcVolumeName string `json:"pvcVolumeName"`
-	//Domain Name
-	DomainName string `json:"domainName"`
-	//TLS Flag
-	Tls string `json:"tls"`
+	Name            string `json:"name"`
+	KeysaasUsername string `json:"keysaasUsername"`
+	KeysaasPassword string `json:"keysaasPassword"`
+	LimitsMemory    string `json:"limitsMemory"`
+	LimitsCpu       string `json:"limitsCpu"`
+	DomainName      string `json:"domainName"`
+	Tls             string `json:"tls"`
 }
 
 // KeysaasStatus is the status for a Keysaas resource
