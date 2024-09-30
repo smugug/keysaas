@@ -32,15 +32,13 @@ spec:
           spec:
             type: object
             properties:
-              mySQLServiceName:
+              keysaasUsername:
                 type: string
-              mySQLUserName:
+              keysaasPassword:
                 type: string
-              mySQLUserPassword:
+              limitsMemory:
                 type: string
-              keysaasAdminEmail:
-                type: string
-              pvcVolumeName:
+              limitsCpu:
                 type: string
               domainName:
                 type: string

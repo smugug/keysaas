@@ -5,4 +5,4 @@ metadata:
   namespace: customer2
 spec:
   tls: "1"
-  # domainName: "keysaastest.local" 
+  # domainName: "keysaastest.local"   

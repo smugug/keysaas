@@ -21,7 +21,6 @@ type Keysaas struct {
 // KeysaasSpec is the spec for a KeysaasSpec resource
 // +k8s:openapi-gen=true
 type KeysaasSpec struct {
-	Name            string `json:"name"`
 	KeysaasUsername string `json:"keysaasUsername"`
 	KeysaasPassword string `json:"keysaasPassword"`
 	LimitsMemory    string `json:"limitsMemory"`
