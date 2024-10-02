@@ -11,6 +11,7 @@ import (
 
 	operatorv1 "github.com/smugug/keysaas/pkg/apis/keysaascontroller/v1"
 
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/smugug/keysaas/pkg/utils/constants"
 	appsv1 "k8s.io/api/apps/v1"
 	apiv1 "k8s.io/api/core/v1"
@@ -52,6 +53,16 @@ func (c *KeysaasController) deployKeysaas(ctx context.Context, foo *operatorv1.K
 		return "", "", "", err
 	}
 	deleteFuncs = append(deleteFuncs, c.deleteService)
+
+	err = c.createServiceMonitor(foo)
+	if err != nil {
+		c.logger.Error(err, "KeysaasController.go : Error creating Service Monitor")
+		for i := len(deleteFuncs) - 1; i >= 0; i-- {
+			deleteFuncs[i](foo)
+		}
+		return "", "", "", err
+	}
+	deleteFuncs = append(deleteFuncs, c.deleteServiceMonitor)
 
 	err = c.createIngress(foo)
 	if err != nil {
@@ -337,8 +348,8 @@ func getIngressSpec(keysaasPort int, keysaasDomainName, keysaasPath, keysaasTLSC
 
 func (c *KeysaasController) createPersistentVolume(foo *operatorv1.Keysaas) error {
 	c.logger.Info("KeysaasController.go : Inside createPersistentVolume")
-
 	deploymentName := foo.Name
+	hostPathType := apiv1.HostPathDirectoryOrCreate
 	persistentVolume := &apiv1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: deploymentName,
@@ -362,13 +373,14 @@ func (c *KeysaasController) createPersistentVolume(foo *operatorv1.Keysaas) erro
 			// MINIKUBE ONLY SUPPORTS CERTAIN HOSTPATHS. MAKE SURE TO CHECK IT OUT
 			PersistentVolumeSource: apiv1.PersistentVolumeSource{
 				HostPath: &apiv1.HostPathVolumeSource{
-					Path: "/tmp/hostpath_pv/" + deploymentName,
+					Path: "/tmp/hostpath_pv/themes/" + deploymentName,
+					Type: &hostPathType,
 				},
 			},
 			PersistentVolumeReclaimPolicy: apiv1.PersistentVolumeReclaimDelete,
 		},
 	}
-
+	c.logger.Info("/tmp/hostpath_pv/themes/" + deploymentName)
 	persistentVolumeClient := c.kubeclientset.CoreV1().PersistentVolumes()
 
 	c.logger.Info("KeysaasController.go : Creating persistentVolume...")
@@ -671,7 +683,7 @@ func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas, adminPassw
 							VolumeMounts: []apiv1.VolumeMount{
 								{
 									Name:      "theme-volume",
-									MountPath: constants.KEYCLOAK_THEME_LOCATION,
+									MountPath: constants.KEYCLOAK_THEME_PROVIDER_LOCATION,
 								},
 								// {
 								// 	Name:      "cert-volume",
@@ -694,7 +706,7 @@ func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas, adminPassw
 						// 	Name: "cert-volume",
 						// 	VolumeSource: apiv1.VolumeSource{
 						// 		Secret: &apiv1.SecretVolumeSource{
-						// 			SecretName: "kubernetes-tls",
+						// 			SecretName: "kubern	etes-tls",
 						// 		},
 						// 	},
 						// },
@@ -871,6 +883,64 @@ func (c *KeysaasController) createService(foo *operatorv1.Keysaas) (string, erro
 func (c *KeysaasController) deleteService(foo *operatorv1.Keysaas) error {
 	namespace := getNamespace(foo)
 	return c.kubeclientset.CoreV1().Services(namespace).Delete(context.TODO(), foo.Name, *metav1.NewDeleteOptions(0))
+}
+
+func (c *KeysaasController) createServiceMonitor(foo *operatorv1.Keysaas) error {
+	c.logger.Info("KeysaasController.go : Inside createServiceMonitor")
+	deploymentName := foo.Name
+	namespace := getNamespace(foo)
+	serviceMonitorClient := c.monitoringclientset.MonitoringV1().ServiceMonitors(namespace)
+
+	serviceMonitor := &monitoringv1.ServiceMonitor{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: deploymentName,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: constants.API_VERSION,
+					Kind:       constants.KEYSAAS_KIND,
+					Name:       deploymentName,
+					UID:        foo.UID,
+				},
+			},
+			Labels: map[string]string{
+				"app":        deploymentName,
+				"prometheus": "system-monitoring-prometheus",
+			},
+		},
+		Spec: monitoringv1.ServiceMonitorSpec{
+			Endpoints: []monitoringv1.Endpoint{
+				monitoringv1.Endpoint{
+					Port:     "management",
+					Path:     "/metrics",
+					Interval: monitoringv1.Duration("30s"),
+				},
+			},
+			NamespaceSelector: monitoringv1.NamespaceSelector{
+				MatchNames: []string{
+					"customer2",
+				},
+			},
+			Selector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": deploymentName,
+				},
+			},
+		},
+	}
+	result1, err := serviceMonitorClient.Create(context.TODO(), serviceMonitor, metav1.CreateOptions{})
+	if kerrors.IsAlreadyExists(err) {
+		c.logger.Info("KeysaasController.go : servicemonitor already exists", "servicemonitor name", serviceMonitor.GetObjectMeta().GetName())
+	} else if err != nil {
+		// c.logger.Error(err, "KeysaasController.go : ")
+		return err
+	}
+	c.logger.Info("KeysaasController.go : Created servicemonitor", "servicemonitor name", result1.GetObjectMeta().GetName())
+	return nil
+}
+
+func (c *KeysaasController) deleteServiceMonitor(foo *operatorv1.Keysaas) error {
+	namespace := getNamespace(foo)
+	return c.monitoringclientset.MonitoringV1().ServiceMonitors(namespace).Delete(context.TODO(), foo.Name, *metav1.NewDeleteOptions(0))
 }
 
 func getDomainName(foo *operatorv1.Keysaas) string {

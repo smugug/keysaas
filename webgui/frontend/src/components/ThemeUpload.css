@@ -1,0 +1,25 @@
+div.themediv {
+    width: fit-content;
+    display: flex;
+    align-items: center;
+
+}
+
+input[type="file"] {
+    width: 250px;
+    padding: 5px;
+}
+
+button.themebutton {
+    padding: 8px 16px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+button.themebutton:hover {
+    background-color: #0056b3;
+}
+

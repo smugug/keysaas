@@ -6,7 +6,7 @@ metadata:
 rules:
 - apiGroups: ["keysaascontroller.keysaas"]
   resources: ["keysaases"] 
-  verbs: ["get", "list", "create", "delete", "update"]
+  verbs: ["get", "list", "create", "delete", "update", "patch"]
 - apiGroups: [""]  # Core API
   resources: ["persistentvolumes"]
   verbs: ["get", "list", "update"]
@@ -31,6 +31,34 @@ roleRef:
   name: keycloak-manager
   apiGroup: rbac.authorization.k8s.io
 ---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: themes-pv
+spec:
+  storageClassName: standard
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: /tmp/hostpath_pv/themes
+    type: Directory
+  persistentVolumeReclaimPolicy: Retain
+---
+apiVersion: v1
+kind: PersistentVolumeClaim 
+metadata:
+  name: themes-pvc
+  namespace: customer2
+spec:
+  storageClassName: standard
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -51,16 +79,22 @@ spec:
       serviceAccountName: webgui-account
       containers:
       - name: keysaas-web-backend
-        image: nadekosengoku/keysaas-web-backend:0.0.12
+        image: nadekosengoku/keysaas-web-backend:0.0.29
         imagePullPolicy: Always
         ports:
         - containerPort: 4000
-        env:
-        - name: BASE_URL
-          value: "https://kubernetes.default.svc/apis/keysaascontroller.keysaas/v1/namespaces/customer2/keysaases"
-        - name: PROMETHEUS_URL
-          value: "http://prometheus-operated:9090/api/v1"
-        
+        volumeMounts:
+        - mountPath: /themes
+          name: theme-volume
+        # env:
+        # - name: BASE_URL
+        #   value: "https://kubernetes.default.svc/apis/keysaascontroller.keysaas/v1/namespaces/customer2/keysaases"
+        # - name: PROMETHEUS_URL
+        #   value: "http://prometheus-operated:9090/api/v1"
+      volumes:
+      - name: theme-volume
+        persistentVolumeClaim:
+          claimName: themes-pvc  
 ---
 apiVersion: v1
 kind: Service

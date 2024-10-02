@@ -1,5 +1,5 @@
 import axios from 'axios';
-import {BASE_URL, PROMETHEUS_URL} from './constants';
+import {BASE_URL, PROMETHEUS_URL, THEMES_URL} from './constants';
 
 export const getKeySaaSInstances = async () => {
   try {
@@ -46,6 +46,15 @@ export const getPrometheusMetrics = async (query: string) => {
       params: { query },
     });
     return response.data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export const uploadTheme = async (name: string, formData: FormData) => {
+  try {
+    const response = await axios.post(`${THEMES_URL}/${name}`, FormData);
+    return response.data
   } catch (error) {
     throw error;
   }

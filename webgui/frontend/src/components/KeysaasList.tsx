@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './KeysaasList.css';
+import './ThemeUpload';
 import {deleteKeySaaSInstance,getKeySaaSInstances} from '../api'
+import ThemeUpload from './ThemeUpload';
 
 // Interface for Keysaas Instance
 export interface KeysaasInstance {
@@ -27,7 +29,7 @@ export interface KeysaasInstance {
 
 const KeysaasList: React.FC = () => {
   const [keySaaSInstances, setKeySaaSInstances] = useState<KeysaasInstance[]>([]);
-  const [expanded, setExpanded] = useState<{ [key: string]: boolean }>({});
+  // const [expanded, setExpanded] = useState<{ [key: string]: boolean }>({});
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -69,9 +71,9 @@ const KeysaasList: React.FC = () => {
     }
   };
   // Toggle expand/collapse
-  const toggleExpand = (name: string) => {
-    setExpanded((prevState) => ({ ...prevState, [name]: !prevState[name] }));
-  };
+  // const toggleExpand = (name: string) => {
+  //   setExpanded((prevState) => ({ ...prevState, [name]: !prevState[name] }));
+  // };
 
   // Fetch data on mount
   useEffect(() => {
@@ -93,12 +95,12 @@ const KeysaasList: React.FC = () => {
           {keySaaSInstances.map((instance: any) => (
             <li
               key={instance.metadata.name}
-              className={`keysaas-item ${expanded[instance.metadata.name] ? "expanded" : ""}`}
-              onClick={() => toggleExpand(instance.metadata.name)}
+              className={`keysaas-item expanded`}
             >
               <div className="keysaas-summary">
                 <p><strong>Name:</strong> {instance.metadata.name}</p>
                 <p><strong>Status:</strong> {instance.status?.status || "Unknown"}</p>
+                <ThemeUpload name={instance.metadata.name}/>
                 <button className="delete-button" onClick={()=>goToDetail(instance.metadata.name)} >
                   Go to details
                 </button>
@@ -112,15 +114,12 @@ const KeysaasList: React.FC = () => {
                   Delete
                 </button>
               </div>
-
-              {expanded[instance.metadata.name] && (
-                <div className="keysaas-details">
-                  <p><strong>Pod Name:</strong> {instance.status?.podName}</p>
-                  <p><strong>Secret Name:</strong> {instance.status?.secretName}</p>
-                  <p><strong>URL:</strong> {instance.status?.url}</p>
-                  <p><strong>TLS:</strong> {instance.spec.tls}</p>
-                </div>
-              )}
+              <div className="keysaas-details">
+                <p><strong>Pod Name:</strong> {instance.status?.podName}</p>
+                <p><strong>Secret Name:</strong> {instance.status?.secretName}</p>
+                <p><strong>URL:</strong> {instance.status?.url}</p>
+                <p><strong>TLS:</strong> {instance.spec.tls}</p>
+              </div>
             </li>
           ))}
         </ul>

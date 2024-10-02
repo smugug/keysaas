@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	kubeinformers "k8s.io/client-go/informers"
@@ -38,6 +39,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/go-logr/logr"
+	monitoringclientset "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	operatorv1 "github.com/smugug/keysaas/pkg/apis/keysaascontroller/v1"
 	clientset "github.com/smugug/keysaas/pkg/generated/clientset/versioned"
 	operatorscheme "github.com/smugug/keysaas/pkg/generated/clientset/versioned/scheme"
@@ -82,12 +84,12 @@ type KeysaasController struct {
 	// kubeclientset is a standard kubernetes clientset
 	kubeclientset kubernetes.Interface
 	// sampleclientset is a clientset for our own API group
-	sampleclientset clientset.Interface
-
-	deploymentsLister appslisters.DeploymentLister
-	deploymentsSynced cache.InformerSynced
-	foosLister        listers.KeysaasLister
-	foosSynced        cache.InformerSynced
+	sampleclientset     clientset.Interface
+	monitoringclientset monitoringclientset.Interface
+	deploymentsLister   appslisters.DeploymentLister
+	deploymentsSynced   cache.InformerSynced
+	foosLister          listers.KeysaasLister
+	foosSynced          cache.InformerSynced
 
 	// workqueue is a rate limited work queue. This is used to queue work to be
 	// processed instead of performing it as soon as a change happens. This
@@ -108,6 +110,7 @@ func NewKeysaasController(
 	cfg *restclient.Config,
 	kubeclientset kubernetes.Interface,
 	sampleclientset clientset.Interface,
+	monitoringclientset monitoringclientset.Interface,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	keysaasInformerFactory informers.SharedInformerFactory) *KeysaasController {
 
@@ -133,18 +136,19 @@ func NewKeysaasController(
 	utils := utils.NewUtils(cfg, kubeclientset)
 
 	controller := &KeysaasController{
-		cfg:               cfg,
-		ctx:               ctx,
-		kubeclientset:     kubeclientset,
-		sampleclientset:   sampleclientset,
-		deploymentsLister: deploymentInformer.Lister(),
-		deploymentsSynced: deploymentInformer.Informer().HasSynced,
-		foosLister:        keysaasInformer.Lister(),
-		foosSynced:        keysaasInformer.Informer().HasSynced,
-		workqueue:         workqueue.NewTypedRateLimitingQueue(ratelimiter),
-		recorder:          recorder,
-		util:              utils,
-		logger:            logger,
+		cfg:                 cfg,
+		ctx:                 ctx,
+		kubeclientset:       kubeclientset,
+		sampleclientset:     sampleclientset,
+		monitoringclientset: monitoringclientset,
+		deploymentsLister:   deploymentInformer.Lister(),
+		deploymentsSynced:   deploymentInformer.Informer().HasSynced,
+		foosLister:          keysaasInformer.Lister(),
+		foosSynced:          keysaasInformer.Informer().HasSynced,
+		workqueue:           workqueue.NewTypedRateLimitingQueue(ratelimiter),
+		recorder:            recorder,
+		util:                utils,
+		logger:              logger,
 	}
 
 	logger.Info("Setting up event handlers")
@@ -158,18 +162,18 @@ func NewKeysaasController(
 	keysaasInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueueFoo,
 		UpdateFunc: func(old, new interface{}) {
-			controller.enqueueFoo(new)
-			// newDepl := new.(*operatorv1.Keysaas)
-			// oldDepl := old.(*operatorv1.Keysaas)
-			// //fmt.Println("KeysaasController.go  : New Version:%s", newDepl.ResourceVersion)
-			// //fmt.Println("KeysaasController.go  : Old Version:%s", oldDepl.ResourceVersion)
-			// if newDepl.ResourceVersion == oldDepl.ResourceVersion {
-			// 	// Periodic resync will send update events for all known Deployments.
-			// 	// Two different versions of the same Deployment will always have different RVs.
-			// 	return
-			// } else {
-			// 	controller.enqueueFoo(new)
-			// }
+			// controller.enqueueFoo(new)
+			newDepl := new.(*operatorv1.Keysaas)
+			oldDepl := old.(*operatorv1.Keysaas)
+			logger.Info("KeysaasController.go : Update function", "new version", newDepl.ResourceVersion, "old version", oldDepl.ResourceVersion)
+			if newDepl.ResourceVersion == oldDepl.ResourceVersion {
+				// Periodic resync will send update events for all known Deployments.
+				// Two different versions of the same Deployment will always have different RVs
+				logger.Info("KeysaasController.go : Update function failed, two version are the same")
+				return
+			} else {
+				controller.enqueueFoo(new)
+			}
 		},
 	})
 	// Set up an event handler for when Deployment resources change. This
@@ -338,8 +342,13 @@ func (c *KeysaasController) syncHandler(ctx context.Context, objRef cache.Object
 			c.logger.Info("KeysaasController.go : Updating error", "error", err)
 			return err
 		}
-	} else {
-		c.logger.Info("KeysaasController.go : Keysaas custom resource did not change", "keysaas name", keysaasName)
+	} else if foo.GetAnnotations()["keysaas/restart"] == "1" {
+		c.logger.Info("KeysaasController.go : Restarting the Keysaas")
+		err = c.restartKeysaas(ctx, foo)
+		if err != nil {
+			c.logger.Info("KeysaasController.go : Restarting error", "error", err)
+			return err
+		}
 	}
 
 	// else {
@@ -443,6 +452,8 @@ func (c *KeysaasController) updateKeysaasStatus(ctx context.Context, foo *operat
 	}
 	fooCopy.Status.Status = status
 	fooCopy.Status.Url = url
+	fooCopy.Annotations = make(map[string]string)
+	fooCopy.Annotations["keysaas/restart"] = "0"
 	// fooCopy.Status.InstalledPlugins = *plugins
 	// fooCopy.Status.UnsupportedPlugins = *unsupportedPlugins
 	// Until #38113 is merged, we must use Update instead of UpdateStatus to
@@ -450,6 +461,17 @@ func (c *KeysaasController) updateKeysaasStatus(ctx context.Context, foo *operat
 	// allow changes to the Spec of the resource, which is ideal for ensuring
 	// nothing other than resource status has been updated.
 	_, err := c.sampleclientset.KeysaascontrollerV1().Keysaases(foo.Namespace).Update(ctx, fooCopy, metav1.UpdateOptions{})
+	return err
+}
+
+func (c *KeysaasController) restartKeysaas(ctx context.Context, foo *operatorv1.Keysaas) error {
+	data1 := `[{"op": "replace", "path": "/metadata/annotations/keysaas~1restart", "value": "0"}]`
+	_, err := c.sampleclientset.KeysaascontrollerV1().Keysaases(foo.Namespace).Patch(ctx, foo.Name, types.JSONPatchType, []byte(data1), metav1.PatchOptions{})
+	if err != nil {
+		return err
+	}
+	data2 := fmt.Sprintf(`{"spec": {"template": {"metadata": {"annotations": {"kubectl.kubernetes.io/restartedAt": "%s"}}}}}`, time.Now().Format("20060102150405"))
+	_, err = c.kubeclientset.AppsV1().Deployments(foo.Namespace).Patch(ctx, foo.Name, types.StrategicMergePatchType, []byte(data2), metav1.PatchOptions{})
 	return err
 }
 

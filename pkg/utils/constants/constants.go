@@ -10,8 +10,8 @@ const (
 	KEYCLOAK_DEFAULT_JGROUP_PORT     = 7600
 	KEYCLOAK_DEFAULT_MANAGEMENT_PORT = 9000 // for /health and /metrics
 	KEYCLOAK_PATH                    = "/"  //"/keycloak/(.*)"
-	KEYCLOAK_IMAGE                   = "bitnami/keycloak:25"
-	KEYCLOAK_THEME_LOCATION          = "/opt/bitnami/keycloak/themes"
+	KEYCLOAK_IMAGE                   = "bitnami/keycloak:25.0.6"
+	KEYCLOAK_THEME_PROVIDER_LOCATION = "/opt/bitnami/keycloak/providers"
 	KEYCLOAK_CERT_LOCATION           = "/certificate"
 	BASE_URL                         = "kubernetes.local"
 	WAIT_FOR_POD_TIMEOUT             = 75 //*4seconds = 5 min

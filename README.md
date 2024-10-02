@@ -35,3 +35,10 @@ kubectl apply -f artifacts/keysaastest.yaml
 
 # NOTE
 welp somehow you can't use axios to connect to other pods with cacert, request works well
+
+curl -v -X PATCH \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json-patch+json" \
+  --cacert $CRT_PATH \
+  --data '[{"op": "replace", "path": "/metadata/annotations/keysaas~1restart", "value": "0"}]' \
+  https://kubernetes.default.svc/apis/keysaascontroller.keysaas/v1/namespaces/customer2/keysaases/keysaastest

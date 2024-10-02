@@ -20,6 +20,10 @@ const readFile = (path: string): string => {
 };
 export const token = readFile(token_path);
 export const cert = readFile(cert_path);
+export const BASE_KEYSAAS_URL = "https://kubernetes.default.svc/apis/keysaascontroller.keysaas/v1/namespaces/customer2/keysaases";
+export const BASE_PV_URL = "https://kubernetes.default.svc/api/v1/persistentvolumes";
+export const BASE_PROMETHEUS_URL = "http://prometheus-operated.default.svc:9090/api/v1";
+export const BASE_DEPLOYMENT_URL = "https://kubernetes.default.svc/apis/apps/v1/namespaces/customer2/deployments"
 
 console.log('0.0.12')
 
@@ -29,7 +33,7 @@ app.use(express.json());
 // Routes
 app.use('/api/keysaas', keySaaSRoutes);
 app.use('/api/prometheus', prometheusRoutes);
-app.use('/api/theme', themeRoutes);
+app.use('/api/themes', themeRoutes);
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);

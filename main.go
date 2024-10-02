@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"time"
 
+	monitoringclientset "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	clientset "github.com/smugug/keysaas/pkg/generated/clientset/versioned"
 	informers "github.com/smugug/keysaas/pkg/generated/informers/externalversions"
 	"github.com/smugug/keysaas/pkg/signals"
@@ -53,11 +54,12 @@ func main() {
 
 	kubeClient := kubernetes.NewForConfigOrDie(cfg)
 	keysaasClient := clientset.NewForConfigOrDie(cfg)
+	monitoringClient := monitoringclientset.NewForConfigOrDie(cfg)
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, time.Second*30)
 	keysaasInformerFactory := informers.NewSharedInformerFactory(keysaasClient, time.Second*30)
 
-	keysaasController := NewKeysaasController(ctx, cfg, kubeClient, keysaasClient, kubeInformerFactory, keysaasInformerFactory)
+	keysaasController := NewKeysaasController(ctx, cfg, kubeClient, keysaasClient, monitoringClient, kubeInformerFactory, keysaasInformerFactory)
 
 	// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(ctx.done())
 	// Start method is non-blocking and runs all registered informers in a dedicated goroutine.

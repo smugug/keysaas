@@ -56,7 +56,7 @@ spec:
   serviceMonitorSelector: {}
   podMonitorSelector: {}
   routePrefix: /
-  externalUrl: kubernetes.local
+  # externalUrl: kubernetes.local
 ---
 apiVersion: v1
 kind: Service
