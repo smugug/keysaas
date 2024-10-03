@@ -14,6 +14,7 @@ import (
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/smugug/keysaas/pkg/utils/constants"
 	appsv1 "k8s.io/api/apps/v1"
+	v2 "k8s.io/api/autoscaling/v2"
 	apiv1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -98,7 +99,17 @@ func (c *KeysaasController) deployKeysaas(ctx context.Context, foo *operatorv1.K
 		}
 		return "", "", "", err
 	}
-	// deleteFuncs = append(deleteFuncs, c.deleteDeployment)
+	deleteFuncs = append(deleteFuncs, c.deleteDeployment)
+
+	err = c.createHorizontalPodAutoscaler(foo)
+	if err != nil {
+		c.logger.Error(err, "KeysaasController.go : Error creating Ingress")
+		for i := len(deleteFuncs) - 1; i >= 0; i-- {
+			deleteFuncs[i](foo)
+		}
+		return "", "", "", err
+	}
+	deleteFuncs = append(deleteFuncs, c.deleteHorizontalPodAutoscaler)
 
 	// Wait couple of seconds more just to give the Pod some more time.
 	time.Sleep(time.Second * 2)
@@ -745,6 +756,63 @@ func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas, adminPassw
 func (c *KeysaasController) deleteDeployment(foo *operatorv1.Keysaas) error {
 	namespace := getNamespace(foo)
 	return c.kubeclientset.AppsV1().Deployments(namespace).Delete(context.TODO(), foo.Name, *metav1.NewDeleteOptions(0))
+}
+
+func (c *KeysaasController) createHorizontalPodAutoscaler(foo *operatorv1.Keysaas) error {
+	c.logger.Info("KeysaasController.go : Inside createHorizontalPodAutoscaler")
+	deploymentName := foo.Name
+	namespace := getNamespace(foo)
+	hpaClient := c.kubeclientset.AutoscalingV2().HorizontalPodAutoscalers(namespace)
+	hpa := &v2.HorizontalPodAutoscaler{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      deploymentName,
+			Namespace: namespace,
+		},
+		Spec: v2.HorizontalPodAutoscalerSpec{
+			ScaleTargetRef: v2.CrossVersionObjectReference{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Name:       deploymentName,
+			},
+			MinReplicas: int32Ptr(1),
+			MaxReplicas: 2,
+			Metrics: []v2.MetricSpec{
+				v2.MetricSpec{
+					Type: v2.ResourceMetricSourceType,
+					Resource: &v2.ResourceMetricSource{
+						Name: apiv1.ResourceCPU,
+						Target: v2.MetricTarget{
+							Type:               v2.UtilizationMetricType,
+							AverageUtilization: int32Ptr(90),
+						},
+					},
+				},
+				v2.MetricSpec{
+					Type: v2.ResourceMetricSourceType,
+					Resource: &v2.ResourceMetricSource{
+						Name: apiv1.ResourceMemory,
+						Target: v2.MetricTarget{
+							Type:               v2.UtilizationMetricType,
+							AverageUtilization: int32Ptr(90),
+						},
+					},
+				},
+			},
+		},
+	}
+	result, err := hpaClient.Create(context.TODO(), hpa, metav1.CreateOptions{})
+	if err != nil {
+		// c.logger.Error(err, "KeysaasController.go : ")
+		return err
+	}
+	c.logger.Info("KeysaasController.go : Created HorizontalPodAutoscaler", "HPA name", result.GetObjectMeta().GetName())
+	return nil
+}
+
+func (c *KeysaasController) deleteHorizontalPodAutoscaler(foo *operatorv1.Keysaas) error {
+	namespace := getNamespace(foo)
+	return c.kubeclientset.AutoscalingV2().HorizontalPodAutoscalers(namespace).Delete(context.TODO(), foo.Name, *metav1.NewDeleteOptions(0))
+	return nil
 }
 
 func (c *KeysaasController) getSecret(foo *operatorv1.Keysaas) (string, string) {

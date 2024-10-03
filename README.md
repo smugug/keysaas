@@ -1,44 +1,37 @@
-# Build local image
-./build-local-deploy-artifacts.sh
-# Run local executable
-./test  
-
-# Ingress controller (node port: http:30010 https:30011)
+## Install
+### Add repo traefik and prometheus
 helm repo add traefik https://traefik.github.io/charts
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 
-
-# Create keysaas CRD and RBAC
+### Keysaas CRD and RBAC
 kubectl apply -f artifacts/keysaas-crd-deployment.yaml
-# Create namespace for deployed Keysaases
+### Nnamespace for deployed Keysaases
 kubectl create namespace customer2
-# Create database
+### Database
 kubectl apply -f artifacts/postgresql.yaml
-# Deploy prometheus
+### Prometheus
 curl -sL https://github.com/prometheus-operator/prometheus-operator/releases/download/v0.69.0/bundle.yaml | kubectl create -f -
 kubectl apply -f artifacts/prometheus/prometheus.yaml
-# Deploy traefik
+### Metric server
+kubectl apply -f artifacts/metrics-server/components.yaml --kubelet-insecure-tls
+### Traefik (ingress controller)
 helm install traefik traefik/traefik -f artifacts/traefik/values.yaml
-# Deploy cert-manager
+### Cert-manager
 kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.15.3/cert-manager.yaml
 kubectl apply -f artifacts/cert-manager/clusterissuer.yaml
-
+### Web backend
 kubectl apply -f artifacts/rbac-web/keysaasrole.yaml
 
-# Deploy keysaas
+## Oof
+### Test keysaas
 kubectl apply -f artifacts/keysaastest.yaml
+### Build local image
+./build-local-deploy-artifacts.sh
+### Run local executable
+./test.sh
 
-# TODO
-- web gui
-- monitor
+## TODO
 
-# NOTE
+## NOTE
 welp somehow you can't use axios to connect to other pods with cacert, request works well
-
-curl -v -X PATCH \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json-patch+json" \
-  --cacert $CRT_PATH \
-  --data '[{"op": "replace", "path": "/metadata/annotations/keysaas~1restart", "value": "0"}]' \
-  https://kubernetes.default.svc/apis/keysaascontroller.keysaas/v1/namespaces/customer2/keysaases/keysaastest
