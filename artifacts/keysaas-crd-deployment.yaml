@@ -36,9 +36,21 @@ spec:
                 type: string
               keysaasPassword:
                 type: string
+              requestsMemory:
+                type: string
+              requestsCpu:
+                type: string
               limitsMemory:
                 type: string
               limitsCpu:
+                type: string
+              scalingThreshold:
+                type: string
+              minInstances:
+                type: string
+              maxInstances:
+                type: string
+              postgresUri:
                 type: string
               domainName:
                 type: string
@@ -47,6 +59,8 @@ spec:
           status:
             type: object
             properties:
+              keycloakVersion:
+                type: string
               podName:
                 type: string
               secretName:

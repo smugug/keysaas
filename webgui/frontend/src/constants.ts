@@ -15,8 +15,14 @@ export interface KeySaaSResource {
       domainName: string;
       keysaasPassword: string;
       keysaasUsername: string;
+      requestsCpu: string;
+      requestsMemory: string;
       limitsCpu: string;
       limitsMemory: string;
+      scalingThreshold: string;
+      minInstances: string;
+      maxInstances: string;
+      postgresUri: string;
       tls: string;
     };
   }

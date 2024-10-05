@@ -38,10 +38,11 @@ const PrometheusGraph: React.FC<PrometheusGraphProps> = ({ query, title }) => {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
+      
+      
 
       try {
         const data = await getPrometheusMetrics(query)
-        console.log(data)
 
         const result = data.data.result;
         if (result.length === 0) {
@@ -50,16 +51,20 @@ const PrometheusGraph: React.FC<PrometheusGraphProps> = ({ query, title }) => {
         //const metric = result[0].metric
         let mergedValues : [number, string][] = []
         result.forEach((res : MetricData) => {
-          console.log(res)
           mergedValues = mergedValues.concat(res.values);
         });
-        console.log(mergedValues.length) 
         mergedValues = mergedValues.filter((_, index)=> index % Math.ceil(mergedValues.length / MAX_POINTS) === 0);
          
-        const labels = mergedValues.map((value: [number, string]) => new Date(convertUnixTimestampToDate(value[0])).toLocaleTimeString());
+        const labels = mergedValues.map((value: [number, string]) => 
+          new Date(convertUnixTimestampToDate(value[0])).toLocaleTimeString([], { 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            second: '2-digit', 
+            hour12: false 
+          })
+        );
+        
         const values = mergedValues.map((value: [number, string]) => parseFloat(value[1]));
-        console.log(labels)
-        console.log(values)
         setData({
           labels,
           datasets: [
@@ -84,35 +89,46 @@ const PrometheusGraph: React.FC<PrometheusGraphProps> = ({ query, title }) => {
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
+  const formatNumber = (num: number) => {
+    if (Math.abs(num) >= 1.0e9) {
+      return (num / 1.0e9).toFixed(1) + "b";
+    }
+    if (Math.abs(num) >= 1.0e6) {
+      return (num / 1.0e6).toFixed(1) + "m";
+    }
+    if (Math.abs(num) >= 1.0e3) {
+      return (num / 1.0e3).toFixed(1) + "k";
+    }
+    return num.toString();
+  };
+
   const options = {
+    scales: {
+      y: {
+        ticks: {
+          callback: (value: number | string) => {
+            // Format only if the value is a number
+            return typeof value === 'number' ? formatNumber(value) : value;
+          },
+        },
+      },  
+    },
+    plugins: {
+      legend: {
+        display: true,
+      },
+    },
     responsive: true,
     maintainAspectRatio: false,
-    // scales: {
-    //   y: {
-    //     beginAtZero: true, // Start the y-axis at zero
-    //     max: 100, // Set your desired maximum value here
-    //     title: {
-    //       display: true,
-    //       text: 'Memory Usage (%)' // Title for the y-axis
-    //     }
-    //   },
-    //   x: {
-    //     title: {
-    //       display: true,
-    //       text: 'Time (s)' // Title for the x-axis
-    //     }
-    //   }
-    // }
   }
   return (
-    <div>
-      <h3>{title}</h3>
-      <div style={{ height: '400px', width: '80%' }}>
+          <div>   
+            <div style={{ height: '400px', width: '100%' }}>
 
-      <Line data={data} options={options} />
-      </div>  
+            <Line data={data} options={options} />
+            </div>
 
-    </div>
+          </div>
   );
 };
 

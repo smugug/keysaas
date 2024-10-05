@@ -10,6 +10,16 @@ export const getKeySaaSInstances = async () => {
   }
 };
 
+export const getKeySaaSInstance = async (name: string) => {
+  try {
+    const url = `${BASE_URL}/${name}`;
+    const response = await axios.get(url);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const createKeySaaSInstance = async (keySaaS: any) => {
   try {
     const response = await axios.post(BASE_URL, keySaaS);

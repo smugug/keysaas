@@ -109,7 +109,7 @@ func (c *KeysaasController) deployKeysaas(ctx context.Context, foo *operatorv1.K
 		}
 		return "", "", "", err
 	}
-	deleteFuncs = append(deleteFuncs, c.deleteHorizontalPodAutoscaler)
+	//deleteFuncs = append(deleteFuncs, c.deleteHorizontalPodAutoscaler)
 
 	// Wait couple of seconds more just to give the Pod some more time.
 	time.Sleep(time.Second * 2)
@@ -528,6 +528,8 @@ func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas, adminPassw
 
 	c.logger.Info("KeysaasController.go : HOST and PORT", "HOST_NAME", HOST_NAME, "PORT")
 
+	defaultIfEmpty(&foo.Spec.RequestsCpu, "500m")
+	defaultIfEmpty(&foo.Spec.RequestsMemory, "512Mi")
 	defaultIfEmpty(&foo.Spec.LimitsCpu, "500m")
 	defaultIfEmpty(&foo.Spec.LimitsMemory, "512Mi")
 	/// WARNING
@@ -601,6 +603,10 @@ func (c *KeysaasController) createDeployment(foo *operatorv1.Keysaas, adminPassw
 									PeriodSeconds:       2,
 								},*/
 							Resources: apiv1.ResourceRequirements{
+								Requests: apiv1.ResourceList{
+									apiv1.ResourceCPU:    resource.MustParse(foo.Spec.RequestsCpu),
+									apiv1.ResourceMemory: resource.MustParse(foo.Spec.RequestsMemory),
+								},
 								Limits: apiv1.ResourceList{
 									apiv1.ResourceCPU:    resource.MustParse(foo.Spec.LimitsCpu),
 									apiv1.ResourceMemory: resource.MustParse(foo.Spec.LimitsMemory),
@@ -763,10 +769,33 @@ func (c *KeysaasController) createHorizontalPodAutoscaler(foo *operatorv1.Keysaa
 	deploymentName := foo.Name
 	namespace := getNamespace(foo)
 	hpaClient := c.kubeclientset.AutoscalingV2().HorizontalPodAutoscalers(namespace)
+	defaultIfEmpty(&foo.Spec.ScalingThreshold, "90")
+	defaultIfEmpty(&foo.Spec.MinInstances, "1")
+	defaultIfEmpty(&foo.Spec.MaxInstances, "3")
+	threshold, err := strconv.Atoi(foo.Spec.ScalingThreshold)
+	if err != nil || threshold > 100 || threshold < 50 {
+		threshold = 90
+	}
+	minInstances, err := strconv.Atoi(foo.Spec.MinInstances)
+	if err != nil || minInstances < 1 || minInstances > 10 {
+		minInstances = 1
+	}
+	maxInstances, err := strconv.Atoi(foo.Spec.MaxInstances)
+	if err != nil || maxInstances > 10 || maxInstances < minInstances {
+		maxInstances = minInstances + 1
+	}
 	hpa := &v2.HorizontalPodAutoscaler{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      deploymentName,
 			Namespace: namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: constants.API_VERSION,
+					Kind:       constants.KEYSAAS_KIND,
+					Name:       foo.Name,
+					UID:        foo.UID,
+				},
+			},
 		},
 		Spec: v2.HorizontalPodAutoscalerSpec{
 			ScaleTargetRef: v2.CrossVersionObjectReference{
@@ -774,8 +803,8 @@ func (c *KeysaasController) createHorizontalPodAutoscaler(foo *operatorv1.Keysaa
 				Kind:       "Deployment",
 				Name:       deploymentName,
 			},
-			MinReplicas: int32Ptr(1),
-			MaxReplicas: 2,
+			MinReplicas: int32Ptr(int32(minInstances)),
+			MaxReplicas: int32(maxInstances),
 			Metrics: []v2.MetricSpec{
 				v2.MetricSpec{
 					Type: v2.ResourceMetricSourceType,
@@ -783,7 +812,7 @@ func (c *KeysaasController) createHorizontalPodAutoscaler(foo *operatorv1.Keysaa
 						Name: apiv1.ResourceCPU,
 						Target: v2.MetricTarget{
 							Type:               v2.UtilizationMetricType,
-							AverageUtilization: int32Ptr(90),
+							AverageUtilization: int32Ptr(int32(threshold)),
 						},
 					},
 				},
@@ -793,7 +822,7 @@ func (c *KeysaasController) createHorizontalPodAutoscaler(foo *operatorv1.Keysaa
 						Name: apiv1.ResourceMemory,
 						Target: v2.MetricTarget{
 							Type:               v2.UtilizationMetricType,
-							AverageUtilization: int32Ptr(90),
+							AverageUtilization: int32Ptr(int32(threshold)),
 						},
 					},
 				},

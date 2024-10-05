@@ -12,13 +12,15 @@ const ThemeUpload: React.FC<ThemeUploadProps> = ({name}) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files.length > 0) {
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      event.preventDefault()
+      if (event.target.files && event.target.files.length > 0) {
       setSelectedFile(event.target.files[0]);
     }
   };
 
-  const handleUpload = async () => {
+  const handleUpload = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
     if (!selectedFile) {
       alert('Please select a file first');
       return;

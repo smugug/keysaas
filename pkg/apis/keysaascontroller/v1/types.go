@@ -21,21 +21,28 @@ type Keysaas struct {
 // KeysaasSpec is the spec for a KeysaasSpec resource
 // +k8s:openapi-gen=true
 type KeysaasSpec struct {
-	KeysaasUsername string `json:"keysaasUsername"`
-	KeysaasPassword string `json:"keysaasPassword"`
-	LimitsMemory    string `json:"limitsMemory"`
-	LimitsCpu       string `json:"limitsCpu"`
-	DomainName      string `json:"domainName"`
-	Tls             string `json:"tls"`
+	KeysaasUsername  string `json:"keysaasUsername"`
+	KeysaasPassword  string `json:"keysaasPassword"`
+	RequestsMemory   string `json:"requestsMemory"`
+	RequestsCpu      string `json:"requestsCpu"`
+	LimitsMemory     string `json:"limitsMemory"`
+	LimitsCpu        string `json:"limitsCpu"`
+	ScalingThreshold string `json:"scalingThreshold"`
+	MinInstances     string `json:"minInstances"`
+	MaxInstances     string `json:"maxInstances"`
+	PostgresUri      string `json:"postgresUri"`
+	DomainName       string `json:"domainName"`
+	Tls              string `json:"tls"`
 }
 
 // KeysaasStatus is the status for a Keysaas resource
 // +k8s:openapi-gen=true
 type KeysaasStatus struct {
-	PodName    string `json:"podName"`
-	SecretName string `json:"secretName"`
-	Status     string `json:"status"`
-	Url        string `json:"url"`
+	KeycloakVersion string `json:"keycloakVersion"`
+	PodName         string `json:"podName"`
+	SecretName      string `json:"secretName"`
+	Status          string `json:"status"`
+	Url             string `json:"url"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -452,6 +452,7 @@ func (c *KeysaasController) updateKeysaasStatus(ctx context.Context, foo *operat
 	}
 	fooCopy.Status.Status = status
 	fooCopy.Status.Url = url
+	fooCopy.Spec.KeysaasPassword = ""
 	fooCopy.Annotations = make(map[string]string)
 	fooCopy.Annotations["keysaas/restart"] = "0"
 	// fooCopy.Status.InstalledPlugins = *plugins

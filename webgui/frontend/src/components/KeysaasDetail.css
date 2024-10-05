@@ -3,6 +3,7 @@ body {
 }
 
 .flexcontainer {
+  width: 100%;
   display: flex;           /* Enable Flexbox */
   flex-wrap: wrap;        /* Allow items to wrap to the next line */
   justify-content: space-between; /* Distribute items evenly */
@@ -10,7 +11,7 @@ body {
 
 .flexitem {
   flex: 0 0 48%;          /* Each item takes up roughly 48% of the width */
-  margin-bottom: 20px;    /* Space between rows */
+  margin-bottom: 20px;    /* Space between rows */  
   background-color: #f0f0f0; /* Background color */
   border: 1px solid #ddd; /* Border */
   box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1); /* Optional shadow */
@@ -18,3 +19,57 @@ body {
   text-align: center;     /* Center text */
 }
 
+.board {
+  width: 90%;
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  font-family: Arial, sans-serif;
+}
+
+/* h2 {
+  text-align: center;
+  margin-bottom: 20px;
+} */
+
+.section {
+  margin-bottom: 20px;
+}
+
+.section h3 {
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.section p {
+  margin: 5px 0;
+  color: #555;
+}
+
+.section p strong {
+  color: #333;
+}
+
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 2 columns */
+  gap: 20px; /* Space between graphs */
+}
+
+.grid-item {
+  padding: 20px;
+  background-color: #f9f9f9;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 768px) {
+  .grid-container {
+    grid-template-columns: 1fr; /* Stack the graphs in one column on smaller screens */
+  }
+} 

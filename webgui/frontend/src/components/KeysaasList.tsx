@@ -5,27 +5,42 @@ import './ThemeUpload';
 import {deleteKeySaaSInstance,getKeySaaSInstances} from '../api'
 import ThemeUpload from './ThemeUpload';
 
-// Interface for Keysaas Instance
 export interface KeysaasInstance {
+  apiVersion: string; // e.g., "keysaascontroller.keysaas/v1"
+  kind: string; // e.g., "Keysaas"
   metadata: {
-    name: string;
-  };
-  status?: {
-    status: string;
-    url: string;
-    secretName: string,
-    podName: string,
+    annotations: {
+      [key: string]: string; // Map of annotations, key-value pairs
+    };
+    creationTimestamp: string; // e.g., "2024-10-04T09:35:58Z"
+    generation: number; // e.g., 2
+    name: string; // e.g., "keysaastest"
+    namespace: string; // e.g., "customer2"
+    resourceVersion: string; // e.g., "185309"
+    uid: string; // e.g., "a0edbf6e-1c19-4e06-9f6f-b82f4742b157"
   };
   spec: {
-    mySQLServiceName: string;
-    mySQLUserName: string;
-    mySQLUserPassword: string;
-    keysaasAdminEmail: string;
-    pvcVolumeName: string;
-    domainName: string;
-    tls: string;
+    domainName: string,
+    keysaasPassword: string,
+    keysaasUsername: string,
+    requestsCpu: string,
+    requestsMemory: string,
+    limitsCpu: string,
+    limitsMemory: string,
+    scalingThreshold: string,
+    minInstances: string,
+    maxInstances: string,
+    postgresUri: string,
+    tls: string,
+  };
+  status: {
+    podName: string; // e.g., "keysaastest-69747c67f5-rglnd"
+    secretName: string; // e.g., "keysaastest"
+    status: string; // e.g., "Ready"
+    url: string; // e.g., "http://keysaastest.kubernetes.local"
   };
 }
+
 
 const KeysaasList: React.FC = () => {
   const [keySaaSInstances, setKeySaaSInstances] = useState<KeysaasInstance[]>([]);
@@ -93,34 +108,37 @@ const KeysaasList: React.FC = () => {
         <h2>KeySaaS Instances</h2>
         <ul className="keysaas-list">
           {keySaaSInstances.map((instance: any) => (
-            <li
-              key={instance.metadata.name}
-              className={`keysaas-item expanded`}
-            >
-              <div className="keysaas-summary">
-                <p><strong>Name:</strong> {instance.metadata.name}</p>
-                <p><strong>Status:</strong> {instance.status?.status || "Unknown"}</p>
-                <ThemeUpload name={instance.metadata.name}/>
-                <button className="delete-button" onClick={()=>goToDetail(instance.metadata.name)} >
-                  Go to details
-                </button>
-                <button
-                  className="delete-button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete(instance.metadata.name);
-                  }}
-                >
-                  Delete
-                </button>
-              </div>
-              <div className="keysaas-details">
-                <p><strong>Pod Name:</strong> {instance.status?.podName}</p>
-                <p><strong>Secret Name:</strong> {instance.status?.secretName}</p>
-                <p><strong>URL:</strong> {instance.status?.url}</p>
-                <p><strong>TLS:</strong> {instance.spec.tls}</p>
-              </div>
-            </li>
+
+<li
+  key={instance.metadata.name}
+  className={`keysaas-item expanded`}
+  onClick={() => goToDetail(instance.metadata.name)} // Add click handler to the entire item
+>
+  <div className="keysaas-summary">
+    <p><strong>Name:</strong> {instance.metadata.name}</p>
+    <p><strong>Status:</strong> {instance.status?.status || "Unknown"}</p>
+    
+    {/* Delete button */}
+    <button
+      className="delete-button"
+      onClick={(e) => {
+        e.stopPropagation(); // Prevent triggering the item click
+        handleDelete(instance.metadata.name);
+      }}
+    >
+      Delete
+    </button>
+  </div>
+  
+  <div className="keysaas-details">
+    <p><strong>Pod Name:</strong> {instance.status?.podName}</p>
+    <p><strong>Secret Name:</strong> {instance.status?.secretName}</p>
+    <p><strong>URL:</strong> {instance.status?.url}</p>
+  </div>
+</li>
+
+
+          
           ))}
         </ul>
       </div>
